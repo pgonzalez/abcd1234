@@ -26,6 +26,7 @@ This source file is part of the
 xn::Context context_hand;
 xn::Context context_elbow;
 xn::ScriptNode scriptNode;
+xn::ScriptNode scriptNode_elbow;
 xn::EnumerationErrors errors;
 XnStatus nRetVal = XN_STATUS_OK;
 XnStatus nRetVal_Elbow = XN_STATUS_OK;
@@ -33,8 +34,17 @@ bool isOpen = false;
 Ogre::Vector3 kinectPos[6];
 Ogre::Vector3 kinectPosFirst;
 Ogre::Vector3 kinectPosBefore = Ogre::Vector3(0,0,0);
+Ogre::Vector3 armPos[6];
+Ogre::Vector3 armPosFirst;
+Ogre::Vector3 armPosBefore = Ogre::Vector3(0,0,0);
+Ogre::Vector3 wristPos[6];
+Ogre::Vector3 wristPosFirst;
+Ogre::Vector3 wristPosBefore = Ogre::Vector3(0,0,0);
 Ogre::Vector3 ninjaPosOriginal;
 Ogre::Vector3 leftHandPosOriginal;
+Ogre::Vector3 armPosOriginal;
+//XnSkeletonJointTransformation torsoJoint;
+
 int lectura = 0;
 
 
@@ -50,121 +60,16 @@ XnBool fileExists(const char *fn)
 }
 
 int elbowTask(){
-    const char *fn = NULL;
-    if (fileExists(SAMPLE_XML_PATH_LOCAL2)) fn = SAMPLE_XML_PATH_LOCAL2;
-    else {
-        printf("Could not find %s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL2);
-        //return XN_STATUS_ERROR;
-    }
-    printf("Reading config from: '%s'\n", fn);
-    nRetVal = context_elbow.InitFromXmlFile(fn, scriptNode, &errors);
-
-
-    if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
-    {
-        XnChar strError[1024];
-        errors.ToString(strError, 1024);
-        printf("%s\n", strError);
-        return (nRetVal);
-    }
-    else if (nRetVal != XN_STATUS_OK)
-    {
-        printf("Open failed: %s\n", xnGetStatusString(nRetVal));
-        return (nRetVal);
-    }
-
-    xn::DepthGenerator depth;
-    nRetVal = context_elbow.FindExistingNode(XN_NODE_TYPE_DEPTH, depth);
-    CHECK_RC(nRetVal, "Find depth generator");
-
-    XnFPSData xnFPS;
-    nRetVal = xnFPSInit(&xnFPS, 180);
-    CHECK_RC(nRetVal, "FPS Init");
-
-    ElbowTracker mElbowTracker(context_elbow);
-    XnStatus rc= mElbowTracker.Init();
-    //std::cout << "Status: " << rc << std::endl;
-
-    //rc = mElbowTracker.Run();
-
-    /*while (isOpen)
-    {
-
-        nRetVal = context.WaitOneUpdateAll(depth);
-        if (nRetVal != XN_STATUS_OK)
-        {
-            printf("UpdateData failed: %s\n", xnGetStatusString(nRetVal));
-            continue;
-        }
-
-        const TrailHistory&	history = mElbowTracker.GetHistory();
-        const HistoryIterator	hend = history.End();
-        for(HistoryIterator		hit = history.Begin(); hit != hend; ++hit)
-        {
-
-            // Dump the history to local buffer
-            int				numpoints = 0;
-            const Trail&	trail = hit->Value();
-
-            const TrailIterator	tit = trail.Begin();
-
-                XnPoint3D	point = *tit;
-                kinectPos[hit->Key()] = Ogre::Vector3(point.X, point.Y, point.Z);
-                //printf("Elbow Kinect %d Punto X: %f, Punto Y: %f, Punto Z: %f\n",hit->Key(), kinectPos[hit->Key()].x, kinectPos[hit->Key()].y, kinectPos[hit->Key()].z);
-
-                ++numpoints;
-
-            assert(numpoints <= MAX_HAND_TRAIL_LENGTH);
-        }
-    }*/
-
-    depth.Release();
-    scriptNode.Release();
-    context_elbow.Release();
-
-    return 0;
-}
-
-int kinectTask(){
-    printf("kinectTask\n");
-
+    printf("ElbowTask\n");
+    Points** bodyCoords;
     const char *fn = NULL;
     if (fileExists(SAMPLE_XML_PATH_LOCAL)) fn = SAMPLE_XML_PATH_LOCAL;
     else {
-        printf("Could not find '%s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL);
+        printf("Could not find %s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL);
         //return XN_STATUS_ERROR;
     }
     printf("Reading config from: '%s'\n", fn);
-    nRetVal = context_hand.InitFromXmlFile(fn, scriptNode, &errors);
-
-
-    if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
-    {
-        XnChar strError[1024];
-        errors.ToString(strError, 1024);
-        printf("%s\n", strError);
-        return (nRetVal);
-    }
-    else if (nRetVal != XN_STATUS_OK)
-    {
-        printf("Open failed: %s\n", xnGetStatusString(nRetVal));
-        return (nRetVal);
-    }
-
-    xn::DepthGenerator depth;
-    nRetVal = context_hand.FindExistingNode(XN_NODE_TYPE_DEPTH, depth);
-    CHECK_RC(nRetVal, "Find depth generator");
-
-    XnFPSData xnFPS;
-    nRetVal = xnFPSInit(&xnFPS, 180);
-    CHECK_RC(nRetVal, "FPS Init");
-
-    HandTracker mHandTracker(context_hand);
-    XnStatus rc_hand= mHandTracker.Init();
-    //std::cout << "Status: " << rc << std::endl;
-
-    // Elbow
-    nRetVal_Elbow = context_elbow.InitFromXmlFile(fn, scriptNode, &errors);
+    nRetVal = context_elbow.InitFromXmlFile(fn, scriptNode_elbow, &errors);
 
     if (nRetVal_Elbow == XN_STATUS_NO_NODE_PRESENT)
     {
@@ -180,7 +85,7 @@ int kinectTask(){
     }
 
     xn::DepthGenerator depth_el;
-    nRetVal_Elbow = context_hand.FindExistingNode(XN_NODE_TYPE_DEPTH, depth_el);
+    nRetVal_Elbow = context_elbow.FindExistingNode(XN_NODE_TYPE_DEPTH, depth_el);
     CHECK_RC(nRetVal_Elbow, "Find depth generator");
 
     XnFPSData xnFPS_el;
@@ -189,15 +94,65 @@ int kinectTask(){
 
     ElbowTracker mElbowTracker(context_elbow);
 
-    //XnStatus rc_elbow= mElbowTracker.Init();
-    //CHECK_RC(rc_elbow, "ElbowTracker Init");
+    XnStatus rc_elbow= mElbowTracker.Init();
+    rc_elbow = mElbowTracker.Run();
+    while (isOpen)
+    {
+        nRetVal_Elbow = context_elbow.WaitOneUpdateAll(depth_el);
+        bodyCoords = mElbowTracker.Print();
+        //printf("Elbow PointX: %6.2f\n", bodyCoords[1][XN_SKEL_LEFT_ELBOW].pointY);
+        kinectPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointZ));
+        armPos[1] = Ogre::Vector3(trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointX + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointX)/2), trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointY + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointY)/2), trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointZ + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointZ)/2));
+        wristPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointZ));
+    }
+
+
+    depth_el.Release();
+    scriptNode.Release();
+    context_elbow.Release();
+
+    return 0;
+}
+
+int kinectTask(){
+    printf("kinectTask\n");
+
+//    const char *fn = NULL;
+//    if (fileExists(SAMPLE_XML_PATH_LOCAL)) fn = SAMPLE_XML_PATH_LOCAL;
+//    else {
+//        printf("Could not find '%s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL);
+//        //return XN_STATUS_ERROR;
+//    }
+//    printf("Reading config from: '%s'\n", fn);
+//    nRetVal = context_hand.InitFromXmlFile(fn, scriptNode, &errors);
+
+
+//    if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
+//    {
+//        XnChar strError[1024];
+//        errors.ToString(strError, 1024);
+//        printf("%s\n", strError);
+//        return (nRetVal);
+//    }
+//    else if (nRetVal != XN_STATUS_OK)
+//    {
+//        printf("Open failed: %s\n", xnGetStatusString(nRetVal));
+//        return (nRetVal);
+//    }
+
+    xn::DepthGenerator depth;
+    nRetVal = context_hand.FindExistingNode(XN_NODE_TYPE_DEPTH, depth);
+    CHECK_RC(nRetVal, "Find depth generator");
+
+    XnFPSData xnFPS;
+    nRetVal = xnFPSInit(&xnFPS, 180);
+    CHECK_RC(nRetVal, "FPS Init");
+
+    HandTracker mHandTracker(context_hand);
+    XnStatus rc_hand= mHandTracker.Init();
+    //std::cout << "Status: " << rc << std::endl;
 
     rc_hand = mHandTracker.Run();
-    //rc_elbow = mElbowTracker.Run();
-
-
-    //std::thread t2(kinectTrack, mHandTracker.GetHistory());
-    //t2.join();
 
     while (isOpen)
     {
@@ -229,37 +184,9 @@ int kinectTask(){
             assert(numpoints_hand <= MAX_HAND_TRAIL_LENGTH);
         }
 
-        // Elbow
 
-        /*nRetVal_Elbow = context_elbow.WaitOneUpdateAll(depth_el);
-        if (nRetVal_Elbow != XN_STATUS_OK)
-        {
-            printf("UpdateData Elbow failed: %s\n", xnGetStatusString(nRetVal_Elbow));
-            continue;
-        }
-
-        const TrailHistory&	history = mElbowTracker.GetHistory();
-        const HistoryIterator	hend = history.End();
-        for(HistoryIterator		hit = history.Begin(); hit != hend; ++hit)
-        {
-
-            // Dump the history to local buffer
-            int				numpoints = 0;
-            const Trail&	trail = hit->Value();
-
-            const TrailIterator	tit = trail.Begin();
-
-                XnPoint3D	point = *tit;
-                //kinectPos[hit->Key()] = Ogre::Vector3(point.X, point.Y, point.Z);
-                printf("Elbow Kinect %d Punto X: %f, Punto Y: %f, Punto Z: %f\n",hit->Key(), point.X, point.Y, point.Z);
-
-                ++numpoints;
-
-            assert(numpoints <= MAX_HAND_TRAIL_LENGTH);
-        }*/
     }
 
-    //t2.detach();
     depth.Release();
     scriptNode.Release();
     context_hand.Release();
@@ -455,18 +382,22 @@ void BasicTutorial3::createScene(void)
     leftNode->pitch(Ogre::Degree(180));
     leftNode->roll(Ogre::Degree(30));
 
+
+    Ogre::Entity *armEnt = mSceneMgr->createEntity("Arm", "column.mesh");
+
+    Ogre::SceneNode *armNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("Arm");
+    armEnt->setCastShadows(true);
+    armNode->attachObject(armEnt);
+    //rightNode->setScale(40.2, 40.2, 40.2);
+
+    armNode->translate(1780, -25, 2200);
+    armNode->pitch(Ogre::Degree(120));
+
     leftHandPosOriginal = leftNode->getPosition();
+    armPosOriginal = armNode->getPosition();
 
-    /*Ogre::Entity *rightEnt = mSceneMgr->createEntity("HandRight", "hand_femme.mesh");
 
-    Ogre::SceneNode *rightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("HandRight");
-    rightEnt->setCastShadows(true);
-    rightNode->attachObject(rightEnt);
-    rightNode->setScale(40.2, 40.2, 40.2);
 
-    //node2->translate(1800, 50, 1660);
-    rightNode->translate(2200,10,2000);
-    rightNode->yaw(Ogre::Degree(120));*/
 
 }
 //-------------------------------------------------------------------------------------
@@ -511,25 +442,34 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 
         if (lectura == 1){
             kinectPosFirst = kinectPos[1];
+            armPosFirst = armPos[1];
+            wristPosFirst = wristPos[1];
         }
 
 
         Ogre::Node *ninjaNode = mSceneMgr->getRootSceneNode()->getChild("NinjaNode");
         Ogre::Node *leftNode = mSceneMgr->getRootSceneNode()->getChild("HandLeft");
+        Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("Arm");
 
 
         kinectPos[1] = kinectPos[1] - kinectPosFirst;
+        armPos[1] = armPos[1] - armPosFirst;
+        //wristPos[1] = wristPos[1]- wristPosFirst;
 
         //kinectPos[1] = Ogre::Quaternion(Ogre::Degree(200), Ogre::Vector3::UNIT_Y) * kinectPos[1];
         kinectPos[1] = leftHandPosOriginal + kinectPos[1];
+        armPos[1] = armPosOriginal + armPos[1];
 
         //mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->setPosition(kinectPos[1]);
         //ninjaNode->setPosition(kinectPos[1]);
         leftNode->setPosition(kinectPos[1]);
+        armNode->setPosition(armPos[1]);
+        //armNode->pitch(wristPosFirst.angleBetween(wristPos[1]));
 
 
         printf("Lectura %d\n", lectura);
-        printf("Ogre %d Punto X: %f, Punto Y: %f, Punto Z: %f\n",1, kinectPos[1].x, kinectPos[1].y, kinectPos[1].z);
+        printf("Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, kinectPos[1].x, kinectPos[1].y, kinectPos[1].z);
+        printf("Arm %d Point X: %f, Point Y: %f, Point Z: %f\n",1, armPos[1].x, armPos[1].y, armPos[1].z);
         //printf("NinjaNode Original X: %f, Y: %f, Z: %f\n", mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->getPosition().x, mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->getPosition().y, mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->getPosition().z);
         printf("NinjaNode Copia X: %f, Y: %f, Z: %f\n", ninjaPosOriginal.x, ninjaPosOriginal.y, ninjaPosOriginal.z);
 
@@ -541,6 +481,9 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 
         kinectPosBefore = kinectPos[1];
         kinectPos[1] = 0;
+        armPosBefore = armPos[1];
+        armPos[1] = 0;
+        wristPosFirst = wristPos[1];
 
     }
 
@@ -556,13 +499,37 @@ extern "C" {
         // Create application object*/
         BasicTutorial3 app;
 
-        std::thread t1(kinectTask);
-        //std::thread t2(elbowTask);
+//        const char *fn = NULL;
+//        if (fileExists(SAMPLE_XML_PATH_LOCAL)) fn = SAMPLE_XML_PATH_LOCAL;
+//        else {
+//            printf("Could not find '%s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL);
+//            //return XN_STATUS_ERROR;
+//        }
+//        printf("Reading config from: '%s'\n", fn);
+//        nRetVal = context_hand.InitFromXmlFile(fn, scriptNode, &errors);
+
+
+//        if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
+//        {
+//            XnChar strError[1024];
+//            errors.ToString(strError, 1024);
+//            printf("%s\n", strError);
+//            return (nRetVal);
+//        }
+//        else if (nRetVal != XN_STATUS_OK)
+//        {
+//            printf("Open failed: %s\n", xnGetStatusString(nRetVal));
+//            return (nRetVal);
+//        }
+
+        //std::thread t1(kinectTask);
+        std::thread t2(elbowTask);
 
         try {
             isOpen = true;
             app.go();
-            t1.join();
+            //t1.join();
+            //t2.join();
         } catch( Ogre::Exception& e ) {
             std::cerr << "An exception has occured: " <<
                 e.getFullDescription().c_str() << std::endl;

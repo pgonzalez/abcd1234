@@ -34,7 +34,6 @@ XnBool m_bNeedPose = FALSE;
 XnChar m_strPose[20] = "";
 XnUserID aUsers[MAX_NUM_USERS];
 XnUInt16 nUsers;
-XnSkeletonJointTransformation torsoJoint;
 
 //---------------------------------------------------------------------------
 // Defines

@@ -48,6 +48,7 @@ using namespace xn;
 XnListT<ElbowTracker*>	ElbowTracker::sm_Instances;
 
 
+
 //---------------------------------------------------------------------------
 // Hooks UserTracker
 //---------------------------------------------------------------------------
@@ -69,8 +70,8 @@ void XN_CALLBACK_TYPE ElbowTracker::User_NewUser(xn::UserGenerator& /*generator*
     {
         pThis->m_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
     }
-    pThis->m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(nId,XN_SKEL_RIGHT_ELBOW,pThis->torsoJoint);
-    pThis->m_History[nId].Push(pThis->torsoJoint.position.position);
+    //pThis->m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(nId,XN_SKEL_RIGHT_ELBOW,pThis->torsoJoint);
+    //pThis->m_History[nId].Push(pThis->torsoJoint.position.position);
 
 
 }
@@ -83,7 +84,7 @@ void XN_CALLBACK_TYPE ElbowTracker::User_LostUser(xn::UserGenerator& /*generator
     ElbowTracker* pThis = static_cast<ElbowTracker*>(pCookie);
 
     printf("%d Lost user %d\n", epochTime, nId);
-    pThis->m_History.Remove(nId);
+    //pThis->m_History.Remove(nId);
 
 }
 
@@ -105,6 +106,7 @@ void XN_CALLBACK_TYPE ElbowTracker::UserCalibration_CalibrationStart(xn::Skeleto
     XnUInt32 epochTime = 0;
     xnOSGetEpochTime(&epochTime);
     printf("%d Calibration started for user %d\n", epochTime, nId);
+
 }
 
 void XN_CALLBACK_TYPE ElbowTracker::UserCalibration_CalibrationComplete(xn::SkeletonCapability& /*capability*/, XnUserID nId, XnCalibrationStatus eStatus, void* pCookie)
@@ -151,6 +153,8 @@ ElbowTracker::ElbowTracker(xn::Context &context) : m_rContext(context){
         printf("Unable to add NiElbowTracker instance to the list.");
         exit(1);
     }
+    printf("ElbowTracker Constructor\n");
+
 
 }
 
@@ -160,7 +164,8 @@ ElbowTracker::~ElbowTracker()
     XnListT<ElbowTracker*>::ConstIterator it = sm_Instances.Find(this);
     assert(it != sm_Instances.End());
     sm_Instances.Remove(it);
-    printf("ElbowTracker Constructor");
+    printf("ElbowTracker Constructor\n");
+
 
 }
 
@@ -170,8 +175,6 @@ XnStatus ElbowTracker::Init()
 
     XnStatus			rc;
     //XnCallbackHandle	chandle;
-
-
 
     rc = m_UserGenerator.Create(m_rContext);
     if (rc != XN_STATUS_OK)
@@ -199,14 +202,14 @@ XnStatus ElbowTracker::Init()
         return rc;
     }
 
-    rc = m_UserGenerator.GetSkeletonCap().RegisterToCalibrationStart(UserCalibration_CalibrationStart, NULL, hCalibrationStart);
+    rc = m_UserGenerator.GetSkeletonCap().RegisterToCalibrationStart(UserCalibration_CalibrationStart, this, hCalibrationStart);
     if (rc != XN_STATUS_OK)
     {
         printf("Unable to register calibration start.");
         return rc;
     }
 
-    rc = m_UserGenerator.GetSkeletonCap().RegisterToCalibrationComplete(UserCalibration_CalibrationComplete, NULL, hCalibrationComplete);
+    rc = m_UserGenerator.GetSkeletonCap().RegisterToCalibrationComplete(UserCalibration_CalibrationComplete, this, hCalibrationComplete);
     if (rc != XN_STATUS_OK)
     {
         printf("Unable to register calibration complete");
@@ -221,7 +224,7 @@ XnStatus ElbowTracker::Init()
             printf("Pose required, but not supported\n");
             return 1;
         }
-        rc = m_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(UserPose_PoseDetected, NULL, hPoseDetected);
+        rc = m_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(UserPose_PoseDetected, this, hPoseDetected);
         if (rc != XN_STATUS_OK)
         {
             printf("Unable to register pose detected.");
@@ -248,5 +251,49 @@ XnStatus ElbowTracker::Run()
     nUsers=MAX_NUM_USERS;
 
     return XN_STATUS_OK;
+}
+
+Points** ElbowTracker::Print(){
+    Points** m_Points;
+    m_Points = new Points*[MAX_NUM_USERS];
+    nUsers=MAX_NUM_USERS;
+    m_UserGenerator.GetUsers(aUsers, nUsers);
+    for(XnUInt16 i=0; i<nUsers; i++)
+    {
+        //printf("Pass 02\n");
+        m_Points[aUsers[i]] = new Points[24];
+
+        if(m_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i])==FALSE){
+            //printf("Pass 03\n");
+
+            continue;
+        }
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_ELBOW,torsoJoint);
+            printf("user %d: left elbow at (%6.2f,%6.2f,%6.2f)\n",aUsers[i],
+                                                            torsoJoint.position.position.X,
+                                                            torsoJoint.position.position.Y,
+                                                            torsoJoint.position.position.Z);
+
+
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointX = torsoJoint.position.position.X;
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointY = torsoJoint.position.position.Y;
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointZ = torsoJoint.position.position.Z;
+
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_HAND,torsoJoint);
+//            printf("user %d: left hand at (%6.2f,%6.2f,%6.2f)\n",aUsers[i],
+//                                                            torsoJoint.position.position.X,
+//                                                            torsoJoint.position.position.Y,
+//                                                            torsoJoint.position.position.Z);
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_HAND].pointX = torsoJoint.position.position.X;
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_HAND].pointY = torsoJoint.position.position.Y;
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_HAND].pointZ = torsoJoint.position.position.Z;
+
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_WRIST,torsoJoint);
+
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_WRIST].pointX = torsoJoint.position.position.X;
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_WRIST].pointY = torsoJoint.position.position.Y;
+        m_Points[aUsers[i]][XN_SKEL_RIGHT_WRIST].pointZ = torsoJoint.position.position.Z;
+    }
+    return m_Points;
 }
 

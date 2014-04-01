@@ -30,8 +30,15 @@
 #define MAX_HAND_TRAIL_LENGTH	10
 #define MAX_NUM_USERS 15
 
+struct Points{
+    XnFloat pointX;
+    XnFloat pointY;
+    XnFloat pointZ;
+};
+
 typedef XnCyclicStackT<XnPoint3D, MAX_HAND_TRAIL_LENGTH> Trail;
 typedef XnHashT<XnUserID, Trail> TrailHistory;
+
 //TrailHistory m_UserHistory;
 
 class ElbowTracker
@@ -42,8 +49,18 @@ public:
 
     XnStatus Init();
     XnStatus Run();
+    Points **Print();
 
     const TrailHistory&	GetHistory()	const	{return m_History;}
+    XnBool m_bNeedPose = FALSE;
+    XnChar m_strPose[20];
+    XnUserID aUsers[MAX_NUM_USERS];
+    XnUInt16 nUsers;
+    XnSkeletonJointTransformation torsoJoint;
+    xn::UserGenerator       m_UserGenerator;
+    xn::ScriptNode          m_scriptNode;
+
+
 
 private:
     // OpenNI User Generator callbacks
@@ -72,14 +89,6 @@ private:
 
     xn::Context&			m_rContext;
     TrailHistory			m_History;
-    xn::UserGenerator       m_UserGenerator;
-    xn::ScriptNode          m_scriptNode;
-
-    XnBool m_bNeedPose = FALSE;
-    XnChar m_strPose[20];
-    XnUserID aUsers[MAX_NUM_USERS];
-    XnUInt16 nUsers;
-    XnSkeletonJointTransformation torsoJoint;
 
     static XnListT<ElbowTracker*>	sm_Instances;	// Living instances of the class
 

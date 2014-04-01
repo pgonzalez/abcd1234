@@ -19,6 +19,12 @@ This source file is part of the
 
 #include "BaseApplication.h"
 
+struct Points{
+    XnFloat pointX;
+    XnFloat pointY;
+    XnFloat pointZ;
+};
+
 class TutorialApplication : public BaseApplication
 {
 public:
