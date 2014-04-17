@@ -164,14 +164,14 @@ ElbowTracker::~ElbowTracker()
     XnListT<ElbowTracker*>::ConstIterator it = sm_Instances.Find(this);
     assert(it != sm_Instances.End());
     sm_Instances.Remove(it);
-    printf("ElbowTracker Constructor\n");
+    //printf("ElbowTracker Constructor\n");
 
 
 }
 
 XnStatus ElbowTracker::Init()
 {
-    printf("Elbow Init Pt 1");
+    printf("Elbow Init Pt 1\n");
 
     XnStatus			rc;
     //XnCallbackHandle	chandle;
@@ -216,9 +216,11 @@ XnStatus ElbowTracker::Init()
         return rc;
     }
 
+    //if (m_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
     if (m_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
     {
         m_bNeedPose = TRUE;
+        printf("Need pose for calibration\n");
         if (!m_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION))
         {
             printf("Pose required, but not supported\n");
@@ -233,7 +235,7 @@ XnStatus ElbowTracker::Init()
         m_UserGenerator.GetSkeletonCap().GetCalibrationPose(m_strPose);
     }
 
-    m_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
+    m_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
     return XN_STATUS_OK;
 }
@@ -249,6 +251,7 @@ XnStatus ElbowTracker::Run()
         return rc;
     }
     nUsers=MAX_NUM_USERS;
+    printf("ElbowTracker Run\n");
 
     return XN_STATUS_OK;
 }
@@ -264,15 +267,16 @@ Points** ElbowTracker::Print(){
         m_Points[aUsers[i]] = new Points[24];
 
         if(m_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i])==FALSE){
-            //printf("Pass 03\n");
+            m_isTracking = FALSE;
 
             continue;
         }
+        m_isTracking = TRUE;
         m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_ELBOW,torsoJoint);
-            printf("user %d: left elbow at (%6.2f,%6.2f,%6.2f)\n",aUsers[i],
-                                                            torsoJoint.position.position.X,
-                                                            torsoJoint.position.position.Y,
-                                                            torsoJoint.position.position.Z);
+//        printf("user %d: left elbow at (%6.2f,%6.2f,%6.2f)\n",aUsers[i],
+//                                                            torsoJoint.position.position.X,
+//                                                            torsoJoint.position.position.Y,
+//                                                            torsoJoint.position.position.Z);
 
 
         m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointX = torsoJoint.position.position.X;

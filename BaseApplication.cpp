@@ -252,7 +252,7 @@ bool BaseApplication::setup(void)
     Ogre::LogManager* logger = new Ogre::LogManager();
     logger->createLog("Ogre_log.log", true, false, false);
 
-    mRoot = new Ogre::Root(mPluginsCfg);
+    mRoot = new Ogre::Root(mPluginsCfg, "ogre.cfg", "Ogre_log.log");
 
     setupResources();
 

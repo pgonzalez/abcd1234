@@ -59,6 +59,7 @@ public:
     XnSkeletonJointTransformation torsoJoint;
     xn::UserGenerator       m_UserGenerator;
     xn::ScriptNode          m_scriptNode;
+    XnBool m_isTracking = FALSE;
 
 
 

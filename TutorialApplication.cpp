@@ -31,18 +31,21 @@ xn::EnumerationErrors errors;
 XnStatus nRetVal = XN_STATUS_OK;
 XnStatus nRetVal_Elbow = XN_STATUS_OK;
 bool isOpen = false;
-Ogre::Vector3 kinectPos[6];
-Ogre::Vector3 kinectPosFirst;
-Ogre::Vector3 kinectPosBefore = Ogre::Vector3(0,0,0);
-Ogre::Vector3 armPos[6];
-Ogre::Vector3 armPosFirst;
-Ogre::Vector3 armPosBefore = Ogre::Vector3(0,0,0);
+Ogre::Vector3 handPos[6];
+Ogre::Vector3 handPosFirst;
+Ogre::Vector3 handPosBefore = Ogre::Vector3(0,0,0);
+Ogre::Vector3 handPosOriginal;
 Ogre::Vector3 wristPos[6];
 Ogre::Vector3 wristPosFirst;
 Ogre::Vector3 wristPosBefore = Ogre::Vector3(0,0,0);
+Ogre::Vector3 wristPosOriginal;
+Ogre::Vector3 elbowPos[6];
+Ogre::Vector3 elbowPosFirst;
+Ogre::Vector3 elbowPosBefore = Ogre::Vector3(0,0,0);
+Ogre::Vector3 elbowPosOriginal;
 Ogre::Vector3 ninjaPosOriginal;
-Ogre::Vector3 leftHandPosOriginal;
-Ogre::Vector3 armPosOriginal;
+Ogre::Real dotProductMax = 0;
+Ogre::Real dotProductMin = 9999999999999999;
 //XnSkeletonJointTransformation torsoJoint;
 
 int lectura = 0;
@@ -87,6 +90,10 @@ int elbowTask(){
     xn::DepthGenerator depth_el;
     nRetVal_Elbow = context_elbow.FindExistingNode(XN_NODE_TYPE_DEPTH, depth_el);
     CHECK_RC(nRetVal_Elbow, "Find depth generator");
+    if(nRetVal_Elbow != XN_STATUS_OK){
+        printf("Kinect Error");
+        exit(1);
+    }
 
     XnFPSData xnFPS_el;
     nRetVal_Elbow = xnFPSInit(&xnFPS_el, 180);
@@ -98,12 +105,18 @@ int elbowTask(){
     rc_elbow = mElbowTracker.Run();
     while (isOpen)
     {
+        //if(mElbowTracker.m_UserGenerator.GetSkeletonCap().IsTracking(mElbowTracker.aUsers[0])==FALSE)
+          //  continue;
+
         nRetVal_Elbow = context_elbow.WaitOneUpdateAll(depth_el);
         bodyCoords = mElbowTracker.Print();
-        //printf("Elbow PointX: %6.2f\n", bodyCoords[1][XN_SKEL_LEFT_ELBOW].pointY);
-        kinectPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointZ));
-        armPos[1] = Ogre::Vector3(trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointX + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointX)/2), trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointY + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointY)/2), trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointZ + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointZ)/2));
-        wristPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointZ));
+        if (mElbowTracker.m_isTracking){
+            //printf("Elbow PointX: %6.2f\n", bodyCoords[1][XN_SKEL_LEFT_ELBOW].pointY);
+            handPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_HAND].pointZ));
+            //armPos[1] = Ogre::Vector3(trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointX + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointX)/2), trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointY + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointY)/2), trunc((bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointZ + bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointZ)/2));
+            wristPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_WRIST].pointZ));
+            elbowPos[1] = Ogre::Vector3(trunc(bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointX), trunc(bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointY), trunc(bodyCoords[1][XN_SKEL_RIGHT_ELBOW].pointZ));
+        }
     }
 
 
@@ -176,7 +189,7 @@ int kinectTask(){
             const TrailIterator	tit_hand = trail_hand.Begin();
 
                 XnPoint3D	point = *tit_hand;
-                kinectPos[hit_hand->Key()] = Ogre::Vector3(point.X, point.Y, point.Z);
+                handPos[hit_hand->Key()] = Ogre::Vector3(point.X, point.Y, point.Z);
                 //printf("Kinect %d Punto X: %f, Punto Y: %f, Punto Z: %f\n",hit->Key(), kinectPos[hit->Key()].x, kinectPos[hit->Key()].y, kinectPos[hit->Key()].z);
 
                 ++numpoints_hand;
@@ -213,7 +226,7 @@ void BasicTutorial3::destroyScene(void)
 //-------------------------------------------------------------------------------------
 void getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
 {
-    img.load("terrain.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    img.load("terrain3.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     if (flipX)
         img.flipAroundY();
     if (flipY)
@@ -303,9 +316,10 @@ void BasicTutorial3::configureTerrainDefaults(Ogre::Light* light)
 //-------------------------------------------------------------------------------------
 void BasicTutorial3::createScene(void)
 {
-    mCamera->setPosition(Ogre::Vector3(1683, 50, 2116));
-    mCamera->lookAt(Ogre::Vector3(1963, 50, 1660));
-
+//    mCamera->setPosition(Ogre::Vector3(1683, 1000, 2116));
+//    mCamera->lookAt(Ogre::Vector3(1683, 1000, 1660));
+    mCamera->setPosition(Ogre::Vector3(1683, 300, 2700));
+    mCamera->lookAt(Ogre::Vector3(1963, 100, 1660));
     mCamera->setNearClipDistance(0.1);
     mCamera->setFarClipDistance(50000);
 
@@ -358,45 +372,185 @@ void BasicTutorial3::createScene(void)
     //mSceneMgr->setSkyBox(true, "Examples/SpaceSkyBox", 5000, false);
     mSceneMgr->setSkyDome(true, "Examples/CloudySky", 5, 8);
 
-    Ogre::Entity *ent = mSceneMgr->createEntity("Ninja", "ninja.mesh");
+    // NINJA
+
+    Ogre::Entity *ent = mSceneMgr->createEntity("Ninja", "column.mesh");
     Ogre::SceneNode *node = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
     ent->setCastShadows(true);
     node->attachObject(ent);
 
-    node->translate(1963, 50, 1660);
-    node->yaw(Ogre::Radian(2.7));
+    node->setPosition(1683, 1000, 1660);
+    node->yaw(Ogre::Degree(180));
+
+    //node->setScale(1,2,1);
 
     ninjaPosOriginal = node->getPosition();
 
-    Ogre::Entity *leftEnt = mSceneMgr->createEntity("HandLeft", "hand.mesh");
+//    // pEntNode is the node the Entity is attached to
+//    // entPos is the current position you're using to place the entity
 
-    Ogre::SceneNode *leftNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("HandLeft");
+//    Ogre::SceneNode* parent = mSceneMgr->getRootSceneNode()->createChildSceneNode("ParentNinjaNode");
+//    // place this node 20 units above where the current entity centre is
+//    parent->setPosition(ninjaPosOriginal + Ogre::Vector3(0,-100,0));
+//    // re-parent the entity node
+//    if (node->getParent())
+//        node->getParent()->removeChild(node);
+//    parent->addChild(node);
+//    // now offset the entity node relative to this parent to put it back in its original place
+//    node->setPosition(Ogre::Vector3(0,100,0));
+//    //parent->pitch(Ogre::Degree(90));
+
+    // LINE
+
+    Ogre::ManualObject* myManualObject =  mSceneMgr->createManualObject("manual1");
+    Ogre::SceneNode* myManualObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual1_node");
+
+    // NOTE: The second parameter to the create method is the resource group the material will be added to.
+    // If the group you name does not exist (in your resources.cfg file) the library will assert() and your program will crash
+    Ogre::MaterialPtr myManualObjectMaterial = Ogre::MaterialManager::getSingleton().create("manual1Material","General");
+    myManualObjectMaterial->setReceiveShadows(false);
+    myManualObjectMaterial->getTechnique(0)->setLightingEnabled(true);
+    myManualObjectMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
+    myManualObjectMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,1);
+    myManualObjectMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
+
+
+    myManualObject->begin("manual1Material", Ogre::RenderOperation::OT_LINE_LIST);
+    myManualObject->position(1750, 0, 2142);
+    //myManualObject->position(1683, 1, 2116);
+    myManualObject->position(1750,450, 2142);
+
+    // etc
+    myManualObject->end();
+
+    myManualObjectNode->attachObject(myManualObject);
+
+    /*Ogre::ManualObject* myManualObject2 =  mSceneMgr->createManualObject("manual2");
+    Ogre::SceneNode* myManualObjectNode2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual2_node");
+
+    // NOTE: The second parameter to the create method is the resource group the material will be added to.
+    // If the group you name does not exist (in your resources.cfg file) the library will assert() and your program will crash
+    Ogre::MaterialPtr myManualObjectMaterial2 = Ogre::MaterialManager::getSingleton().create("manual2Material","General");
+    myManualObjectMaterial2->setReceiveShadows(false);
+    myManualObjectMaterial2->getTechnique(0)->setLightingEnabled(true);
+    myManualObjectMaterial2->getTechnique(0)->getPass(0)->setDiffuse(0,1,0,0);
+    myManualObjectMaterial2->getTechnique(0)->getPass(0)->setAmbient(0,1,0);
+    myManualObjectMaterial2->getTechnique(0)->getPass(0)->setSelfIllumination(0,1,0);
+
+
+    myManualObject2->begin("manual2Material", Ogre::RenderOperation::OT_LINE_LIST);
+    myManualObject2->position(1683, 1, 1760);
+    myManualObject2->position(1683, 1, 1860);
+    // etc
+    myManualObject2->end();
+
+    myManualObjectNode2->attachObject(myManualObject2);
+
+    Ogre::ManualObject* myManualObject3 =  mSceneMgr->createManualObject("manual3");
+    Ogre::SceneNode* myManualObjectNode3 = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual3_node");
+
+    // NOTE: The second parameter to the create method is the resource group the material will be added to.
+    // If the group you name does not exist (in your resources.cfg file) the library will assert() and your program will crash
+    Ogre::MaterialPtr myManualObjectMaterial3 = Ogre::MaterialManager::getSingleton().create("manual3Material","General");
+    myManualObjectMaterial3->setReceiveShadows(false);
+    myManualObjectMaterial3->getTechnique(0)->setLightingEnabled(true);
+    myManualObjectMaterial3->getTechnique(0)->getPass(0)->setDiffuse(1,0,0,0);
+    myManualObjectMaterial3->getTechnique(0)->getPass(0)->setAmbient(1,0,0);
+    myManualObjectMaterial3->getTechnique(0)->getPass(0)->setSelfIllumination(1,0,0);
+
+
+    myManualObject3->begin("manual3Material", Ogre::RenderOperation::OT_LINE_LIST);
+    myManualObject3->position(1683, 1, 1860);
+    myManualObject3->position(1683, 1, 1960);
+    // etc
+    myManualObject3->end();
+
+    myManualObjectNode3->attachObject(myManualObject3);
+
+    Ogre::ManualObject* myManualObject4 =  mSceneMgr->createManualObject("manual4");
+    Ogre::SceneNode* myManualObjectNode4 = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual4_node");
+
+    // NOTE: The second parameter to the create method is the resource group the material will be added to.
+    // If the group you name does not exist (in your resources.cfg file) the library will assert() and your program will crash
+    Ogre::MaterialPtr myManualObjectMaterial4 = Ogre::MaterialManager::getSingleton().create("manual4Material","General");
+    myManualObjectMaterial4->setReceiveShadows(false);
+    myManualObjectMaterial4->getTechnique(0)->setLightingEnabled(true);
+    myManualObjectMaterial4->getTechnique(0)->getPass(0)->setDiffuse(1,1,0,0);
+    myManualObjectMaterial4->getTechnique(0)->getPass(0)->setAmbient(1,1,0);
+    myManualObjectMaterial4->getTechnique(0)->getPass(0)->setSelfIllumination(1,1,0);
+
+
+    myManualObject4->begin("manual4Material", Ogre::RenderOperation::OT_LINE_LIST);
+    myManualObject4->position(1683, 1, 1960);
+    myManualObject4->position(1683, 1, 2060);
+    // etc
+    myManualObject4->end();
+
+    myManualObjectNode4->attachObject(myManualObject4);*/
+
+
+    //Ogre::Vector3 distanceNinjaCamera = node->getPosition().distance(mCamera->getPosition());
+    //printf("Distance Ninja-Camera: %d, %d, %d", distanceNinjaCamera.x, distanceNinjaCamera.y, distanceNinjaCamera.z);
+
+    Ogre::Real distanceNinjaCamera = node->getPosition().distance(Ogre::Vector3(1683,1,2116));
+    printf("Distance Ninja-Camera: %.0f\n", distanceNinjaCamera);
+
+
+    // HAND
+
+    Ogre::Entity *leftEnt = mSceneMgr->createEntity("RightHand", "hand.mesh");
+
+    Ogre::SceneNode *leftNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("RightHandNode");
     leftEnt->setCastShadows(true);
     leftNode->attachObject(leftEnt);
     leftNode->setScale(40.2, 40.2, 40.2);
 
     //node2->translate(1800, 50, 1660);
     //leftNode->translate(2050,10,2300);
-    leftNode->translate(1830, 50, 2000);
+    leftNode->translate(1830, 70, 2000);
     leftNode->yaw(Ogre::Degree(-120));
     leftNode->pitch(Ogre::Degree(180));
     leftNode->roll(Ogre::Degree(30));
 
 
     Ogre::Entity *armEnt = mSceneMgr->createEntity("Arm", "column.mesh");
-
     Ogre::SceneNode *armNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("Arm");
+
     armEnt->setCastShadows(true);
     armNode->attachObject(armEnt);
     //rightNode->setScale(40.2, 40.2, 40.2);
 
-    armNode->translate(1780, -25, 2200);
-    armNode->pitch(Ogre::Degree(120));
+    armNode->translate(1750, 100, 2542);
+    //armNode->pitch(Ogre::Degree(133));
+    //armNode->roll(Ogre::Degree(20));
+    armNode->setScale(1,1,1);
 
-    leftHandPosOriginal = leftNode->getPosition();
-    armPosOriginal = armNode->getPosition();
+    // pEntNode is the node the Entity is attached to
+    // entPos is the current position you're using to place the entity
+
+    Ogre::SceneNode* parent = mSceneMgr->getRootSceneNode()->createChildSceneNode("ParentArmNode");
+    // place this node 20 units above where the current entity centre is
+    parent->setPosition(armNode->getPosition() + Ogre::Vector3(0,-100,0));
+    // re-parent the entity node
+    if (armNode->getParent())
+        armNode->getParent()->removeChild(armNode);
+    parent->addChild(armNode);
+    // now offset the entity node relative to this parent to put it back in its original place
+    armNode->setPosition(Ogre::Vector3(0,100,0));
+    parent->pitch(Ogre::Degree(-90));
+
+    //parent->pitch(Ogre::Degree(-90));
+    //parent->roll(Ogre::Degree(20));
+
+    handPosOriginal = leftNode->getPosition();
+    wristPosOriginal = parent->getPosition();
+//    wristPosOriginal = armNode->getPosition();
+    //elbowPosOriginal = parent->getPosition();
 
 
+    Ogre::SceneNode *kinectElbowNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("KinectElbow");
+    Ogre::SceneNode *kinectWristNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("KinectWrist");
+    Ogre::SceneNode *kinectHandNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("KinectHand");
 
 
 }
@@ -437,53 +591,116 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
         }
     }*/
 
-    if (kinectPos[1] != Ogre::Vector3(0,0,0)){
+    if (handPos[1] != Ogre::Vector3(0,0,0)){
         lectura++;
 
         if (lectura == 1){
-            kinectPosFirst = kinectPos[1];
-            armPosFirst = armPos[1];
+            handPosFirst = handPos[1];
             wristPosFirst = wristPos[1];
+            elbowPosFirst = elbowPos[1];
         }
 
 
         Ogre::Node *ninjaNode = mSceneMgr->getRootSceneNode()->getChild("NinjaNode");
-        Ogre::Node *leftNode = mSceneMgr->getRootSceneNode()->getChild("HandLeft");
-        Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("Arm");
+        Ogre::Node *handNode = mSceneMgr->getRootSceneNode()->getChild("RightHandNode");
+        //Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("Arm");
+        Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
+        Ogre::Node *kinectElbowNode = mSceneMgr->getRootSceneNode()->getChild("KinectElbow");
+        Ogre::Node *kinectWristNode = mSceneMgr->getRootSceneNode()->getChild("KinectWrist");
+        Ogre::Node *kinectHandNode = mSceneMgr->getRootSceneNode()->getChild("KinectHand");
 
 
-        kinectPos[1] = kinectPos[1] - kinectPosFirst;
-        armPos[1] = armPos[1] - armPosFirst;
-        //wristPos[1] = wristPos[1]- wristPosFirst;
+
+//        Ogre::Vector3 wristPitchAngle = Ogre::Vector3(0,wristPos[1].y,wristPos[1].z);
+//        Ogre::Vector3 wristPitchAngleFirst = Ogre::Vector3(0,wristPosFirst.y,wristPosFirst.z);
+
+
+        Ogre::Vector3 handScenePos = handPos[1] - handPosFirst;
+        Ogre::Vector3 armScenePos = wristPos[1] - wristPosFirst;
+        //Ogre::Vector3 armScenePos = elbowPos[1] - elbowPosFirst;
 
         //kinectPos[1] = Ogre::Quaternion(Ogre::Degree(200), Ogre::Vector3::UNIT_Y) * kinectPos[1];
-        kinectPos[1] = leftHandPosOriginal + kinectPos[1];
-        armPos[1] = armPosOriginal + armPos[1];
+        handScenePos = handPosOriginal + handScenePos;
+        armScenePos = wristPosOriginal + armScenePos;
 
         //mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->setPosition(kinectPos[1]);
         //ninjaNode->setPosition(kinectPos[1]);
-        leftNode->setPosition(kinectPos[1]);
-        armNode->setPosition(armPos[1]);
-        //armNode->pitch(wristPosFirst.angleBetween(wristPos[1]));
 
+        kinectElbowNode->setPosition(elbowPos[1]);
+        kinectWristNode->setPosition(wristPos[1]);
+        kinectHandNode->setPosition(handPos[1]);
+        //wristNode->setPosition(wristPos);
+        //armNode->pitch(wristPitchAngleFirst.angleBetween(wristPitchAngle));
+//        Ogre::Quaternion qI = armNode->getInitialOrientation();
+//        Ogre::Vector3 vP = wristPos[1] - wristPosFirst;
+//        vP.normalise();
+//        Ogre::Vector3 vd =  qI * -Ogre::Vector3::UNIT_Y;
+//        Ogre::Quaternion newQ = vd.getRotationTo(vP);
+//        armNode->resetOrientation();
+//        newQ = armNode->convertWorldToLocalOrientation(newQ);
+//        armNode->setOrientation(newQ * qI);
+
+        Ogre::Vector3 distanceVectorArm = kinectWristNode->getPosition() - kinectElbowNode->getPosition();
+        Ogre::Vector3 distanceVectorHand = kinectHandNode->getPosition() - kinectWristNode->getPosition();
+        Ogre::Real distanceWristElbow = kinectWristNode->getPosition().distance(kinectElbowNode->getPosition());
+
+        handNode->setPosition(handScenePos);
+        //armNode->setPosition(armScenePos);
+
+//        Ogre::Real dotProduct = distanceVectorHand.dotProduct(distanceVectorArm);
+//        if(dotProduct > dotProductMax) dotProductMax = dotProduct;
+//        if(dotProduct < dotProductMin) dotProductMin = dotProduct;
+//        /*leftNode->setOrientation(leftNode->convertWorldToLocalOrientation(kinectPosBefore.getRotationTo(kinectPos[1])));*/
 
         printf("Lectura %d\n", lectura);
-        printf("Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, kinectPos[1].x, kinectPos[1].y, kinectPos[1].z);
-        printf("Arm %d Point X: %f, Point Y: %f, Point Z: %f\n",1, armPos[1].x, armPos[1].y, armPos[1].z);
+        printf("Hand to Scene %d Point X: %f, Point Y: %f, Point Z: %f\n",1, handScenePos.x, handScenePos.y, handScenePos.z);
+        printf("Arm (Wrist to Scene) %d Point X: %f, Point Y: %f, Point Z: %f\n",1, armScenePos.x, armScenePos.y, armScenePos.z);
+        printf("Elbow %d Point X: %f, Point Y: %f, Point Z: %f\n",1, elbowPos[1].x, elbowPos[1].y, elbowPos[1].z);
+        printf("Wrist %d Point X: %f, Point Y: %f, Point Z: %f\n",1, wristPos[1].x, wristPos[1].y, wristPos[1].z);
+        printf("Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, handPos[1].x, handPos[1].y, handPos[1].z);
+        //printf("Dot Product X: %e\n",dotProduct );
+        printf("Distance Arm %d Point X: %f, Point Y: %f, Point Z: %f\n",1, distanceVectorArm.x, distanceVectorArm.y, distanceVectorArm.z);
+        printf("Distance Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, distanceVectorHand.x, distanceVectorHand.y, distanceVectorHand.z);
+        printf("Distance Wrist-Elbow: %.2f\n", distanceWristElbow);
+        printf("Magnitude Arm: %.2f\n", distanceVectorArm.length());
+        //printf("Wrist First %d Point X: %f, Point Y: %f, Point Z: %f\n",1, wristPosFirst.x, wristPosFirst.y, wristPosFirst.z);
         //printf("NinjaNode Original X: %f, Y: %f, Z: %f\n", mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->getPosition().x, mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->getPosition().y, mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->getPosition().z);
-        printf("NinjaNode Copia X: %f, Y: %f, Z: %f\n", ninjaPosOriginal.x, ninjaPosOriginal.y, ninjaPosOriginal.z);
+        //printf("NinjaNode Copia X: %f, Y: %f, Z: %f\n", ninjaPosOriginal.x, ninjaPosOriginal.y, ninjaPosOriginal.z);
+        //printf("Wrist Angle: %f\n", wristPitchAngleFirst.angleBetween(wristPitchAngle));
+        //armNode->setOrientation(armPos[1].getRotationTo(distanceVector)*armNode->getOrientation());
 
-        if (((round(leftNode->getPosition().x/100)*100) == (round(ninjaPosOriginal.x/100)*100)) && ((round(leftNode->getPosition().z/100)*100) == (round(ninjaPosOriginal.z/100)*100))){
-            ninjaPosOriginal = ninjaPosOriginal + (kinectPos[1] - kinectPosBefore);
-            ninjaNode->setPosition(ninjaPosOriginal);
-            printf("Toque!\n");
-        }
+//        if (lectura > 200){
+//            Ogre::Real normal = dotProduct/(dotProductMax+dotProductMin);
+//            printf("Normal: %.2f\n", normal);
+//        }
 
-        kinectPosBefore = kinectPos[1];
-        kinectPos[1] = 0;
-        armPosBefore = armPos[1];
-        armPos[1] = 0;
-        wristPosFirst = wristPos[1];
+        // MOVER NINJA
+//        if (((round(handNode->getPosition().x/100)*100) == (round(ninjaPosOriginal.x/100)*100)) && ((round(handNode->getPosition().z/100)*100) == (round(ninjaPosOriginal.z/100)*100))){
+//            ninjaPosOriginal = ninjaPosOriginal + (handScenePos - handPosBefore);
+//            ninjaNode->setPosition(ninjaPosOriginal);
+//            printf("Toque!\n");
+//        }
+
+        // FIN MOVER NINJA
+
+        // PRUEBA MOVER COLUMNA ORIENTACION BRAZO
+
+//        Ogre::Vector3 distanceVectorArmBefore = kinectWristNode->getPosition() - elbowPosFirst;
+//        ninjaNode->pitch(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getPitch());
+//        ninjaNode->roll(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getRoll());
+//        //ninjaNode->setPosition(armScenePos);
+
+        // FIN PRUEBA
+
+        Ogre::Vector3 distanceVectorArmBefore = kinectWristNode->getPosition() - elbowPosFirst;
+        armNode->pitch(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getPitch());
+        armNode->roll(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getRoll());
+
+        handPosBefore = handScenePos;
+        handScenePos = 0;
+        wristPosBefore = armScenePos;
+        armScenePos = 0;
+        elbowPosFirst = elbowPos[1];
 
     }
 
