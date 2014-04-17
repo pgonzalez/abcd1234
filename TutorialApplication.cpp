@@ -44,6 +44,7 @@ Ogre::Vector3 elbowPosFirst;
 Ogre::Vector3 elbowPosBefore = Ogre::Vector3(0,0,0);
 Ogre::Vector3 elbowPosOriginal;
 Ogre::Vector3 ninjaPosOriginal;
+Ogre::Vector3 distanceVectorTotalBefore = Ogre::Vector3(0,0,0);
 Ogre::Real dotProductMax = 0;
 Ogre::Real dotProductMin = 9999999999999999;
 //XnSkeletonJointTransformation torsoJoint;
@@ -226,7 +227,7 @@ void BasicTutorial3::destroyScene(void)
 //-------------------------------------------------------------------------------------
 void getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
 {
-    img.load("terrain3.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    img.load("terrain.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     if (flipX)
         img.flipAroundY();
     if (flipY)
@@ -318,8 +319,8 @@ void BasicTutorial3::createScene(void)
 {
 //    mCamera->setPosition(Ogre::Vector3(1683, 1000, 2116));
 //    mCamera->lookAt(Ogre::Vector3(1683, 1000, 1660));
-    mCamera->setPosition(Ogre::Vector3(1683, 300, 2700));
-    mCamera->lookAt(Ogre::Vector3(1963, 100, 1660));
+    mCamera->setPosition(Ogre::Vector3(1683, 300, 3000));
+    mCamera->lookAt(Ogre::Vector3(1963, 50, 1660));
     mCamera->setNearClipDistance(0.1);
     mCamera->setFarClipDistance(50000);
 
@@ -374,15 +375,15 @@ void BasicTutorial3::createScene(void)
 
     // NINJA
 
-    Ogre::Entity *ent = mSceneMgr->createEntity("Ninja", "column.mesh");
+    Ogre::Entity *ent = mSceneMgr->createEntity("Ninja", "leaves2.mesh");
     Ogre::SceneNode *node = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
     ent->setCastShadows(true);
     node->attachObject(ent);
 
-    node->setPosition(1683, 1000, 1660);
-    node->yaw(Ogre::Degree(180));
+    node->setPosition(1683, 0, 1660);
+    node->pitch(Ogre::Degree(90));
 
-    //node->setScale(1,2,1);
+    node->setScale(200,200,200);
 
     ninjaPosOriginal = node->getPosition();
 
@@ -498,19 +499,19 @@ void BasicTutorial3::createScene(void)
 
     // HAND
 
-    Ogre::Entity *leftEnt = mSceneMgr->createEntity("RightHand", "hand.mesh");
+    Ogre::Entity *handEnt = mSceneMgr->createEntity("RightHand", "hand.mesh");
 
-    Ogre::SceneNode *leftNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("RightHandNode");
-    leftEnt->setCastShadows(true);
-    leftNode->attachObject(leftEnt);
-    leftNode->setScale(40.2, 40.2, 40.2);
+    Ogre::SceneNode *handNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("RightHandNode");
+    handEnt->setCastShadows(true);
+    handNode->attachObject(handEnt);
+    handNode->setScale(40.2, 40.2, 40.2);
 
     //node2->translate(1800, 50, 1660);
     //leftNode->translate(2050,10,2300);
-    leftNode->translate(1830, 70, 2000);
-    leftNode->yaw(Ogre::Degree(-120));
-    leftNode->pitch(Ogre::Degree(180));
-    leftNode->roll(Ogre::Degree(30));
+    handNode->translate(1752, 6, 2018);
+    handNode->yaw(Ogre::Degree(90));
+    //handNode->pitch(Ogre::Degree(90));
+    handNode->roll(Ogre::Degree(-90));
 
 
     Ogre::Entity *armEnt = mSceneMgr->createEntity("Arm", "column.mesh");
@@ -532,17 +533,21 @@ void BasicTutorial3::createScene(void)
     // place this node 20 units above where the current entity centre is
     parent->setPosition(armNode->getPosition() + Ogre::Vector3(0,-100,0));
     // re-parent the entity node
-    if (armNode->getParent())
+    if (armNode->getParent()){
         armNode->getParent()->removeChild(armNode);
+        handNode->getParent()->removeChild(handNode);
+    }
     parent->addChild(armNode);
+    parent->addChild(handNode);
     // now offset the entity node relative to this parent to put it back in its original place
     armNode->setPosition(Ogre::Vector3(0,100,0));
+    handNode->setPosition(2,524,11);
     parent->pitch(Ogre::Degree(-90));
 
     //parent->pitch(Ogre::Degree(-90));
     //parent->roll(Ogre::Degree(20));
 
-    handPosOriginal = leftNode->getPosition();
+    handPosOriginal = handNode->getPosition();
     wristPosOriginal = parent->getPosition();
 //    wristPosOriginal = armNode->getPosition();
     //elbowPosOriginal = parent->getPosition();
@@ -602,14 +607,13 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 
 
         Ogre::Node *ninjaNode = mSceneMgr->getRootSceneNode()->getChild("NinjaNode");
-        Ogre::Node *handNode = mSceneMgr->getRootSceneNode()->getChild("RightHandNode");
+        //Ogre::Node *handNode = mSceneMgr->getRootSceneNode()->getChild("RightHandNode");
         //Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("Arm");
         Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
         Ogre::Node *kinectElbowNode = mSceneMgr->getRootSceneNode()->getChild("KinectElbow");
         Ogre::Node *kinectWristNode = mSceneMgr->getRootSceneNode()->getChild("KinectWrist");
         Ogre::Node *kinectHandNode = mSceneMgr->getRootSceneNode()->getChild("KinectHand");
-
-
+        Ogre::Node *handNode = armNode->getChild("RightHandNode");
 
 //        Ogre::Vector3 wristPitchAngle = Ogre::Vector3(0,wristPos[1].y,wristPos[1].z);
 //        Ogre::Vector3 wristPitchAngleFirst = Ogre::Vector3(0,wristPosFirst.y,wristPosFirst.z);
@@ -620,7 +624,8 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
         //Ogre::Vector3 armScenePos = elbowPos[1] - elbowPosFirst;
 
         //kinectPos[1] = Ogre::Quaternion(Ogre::Degree(200), Ogre::Vector3::UNIT_Y) * kinectPos[1];
-        handScenePos = handPosOriginal + handScenePos;
+        //handScenePos = handPosOriginal + handScenePos;
+        handScenePos = wristPosOriginal + handScenePos;
         armScenePos = wristPosOriginal + armScenePos;
 
         //mSceneMgr->getRootSceneNode()->getChild("NinjaNode")->setPosition(kinectPos[1]);
@@ -629,23 +634,15 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
         kinectElbowNode->setPosition(elbowPos[1]);
         kinectWristNode->setPosition(wristPos[1]);
         kinectHandNode->setPosition(handPos[1]);
-        //wristNode->setPosition(wristPos);
-        //armNode->pitch(wristPitchAngleFirst.angleBetween(wristPitchAngle));
-//        Ogre::Quaternion qI = armNode->getInitialOrientation();
-//        Ogre::Vector3 vP = wristPos[1] - wristPosFirst;
-//        vP.normalise();
-//        Ogre::Vector3 vd =  qI * -Ogre::Vector3::UNIT_Y;
-//        Ogre::Quaternion newQ = vd.getRotationTo(vP);
-//        armNode->resetOrientation();
-//        newQ = armNode->convertWorldToLocalOrientation(newQ);
-//        armNode->setOrientation(newQ * qI);
 
         Ogre::Vector3 distanceVectorArm = kinectWristNode->getPosition() - kinectElbowNode->getPosition();
         Ogre::Vector3 distanceVectorHand = kinectHandNode->getPosition() - kinectWristNode->getPosition();
+        Ogre::Vector3 distanceVectorTotal = kinectHandNode->getPosition() - kinectElbowNode->getPosition();
         Ogre::Real distanceWristElbow = kinectWristNode->getPosition().distance(kinectElbowNode->getPosition());
 
-        handNode->setPosition(handScenePos);
+        //handNode->setPosition(handScenePos);
         //armNode->setPosition(armScenePos);
+        armNode->setPosition(handScenePos);
 
 //        Ogre::Real dotProduct = distanceVectorHand.dotProduct(distanceVectorArm);
 //        if(dotProduct > dotProductMax) dotProductMax = dotProduct;
@@ -653,11 +650,12 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 //        /*leftNode->setOrientation(leftNode->convertWorldToLocalOrientation(kinectPosBefore.getRotationTo(kinectPos[1])));*/
 
         printf("Lectura %d\n", lectura);
-        printf("Hand to Scene %d Point X: %f, Point Y: %f, Point Z: %f\n",1, handScenePos.x, handScenePos.y, handScenePos.z);
-        printf("Arm (Wrist to Scene) %d Point X: %f, Point Y: %f, Point Z: %f\n",1, armScenePos.x, armScenePos.y, armScenePos.z);
-        printf("Elbow %d Point X: %f, Point Y: %f, Point Z: %f\n",1, elbowPos[1].x, elbowPos[1].y, elbowPos[1].z);
-        printf("Wrist %d Point X: %f, Point Y: %f, Point Z: %f\n",1, wristPos[1].x, wristPos[1].y, wristPos[1].z);
-        printf("Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, handPos[1].x, handPos[1].y, handPos[1].z);
+        printf("Arm to Scene %d Point X: %f, Point Y: %f, Point Z: %f\n",1, handScenePos.x, handScenePos.y, handScenePos.z);
+        printf("Hand to Scene %d, Point X: %f, Point Y: %f, Point Z: %f\n", 1, handNode->_getDerivedPosition().x, handNode->_getDerivedPosition().y, handNode->_getDerivedPosition().z);
+//        printf("Arm (Wrist to Scene) %d Point X: %f, Point Y: %f, Point Z: %f\n",1, armScenePos.x, armScenePos.y, armScenePos.z);
+//        printf("Elbow %d Point X: %f, Point Y: %f, Point Z: %f\n",1, elbowPos[1].x, elbowPos[1].y, elbowPos[1].z);
+//        printf("Wrist %d Point X: %f, Point Y: %f, Point Z: %f\n",1, wristPos[1].x, wristPos[1].y, wristPos[1].z);
+//        printf("Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, handPos[1].x, handPos[1].y, handPos[1].z);
         //printf("Dot Product X: %e\n",dotProduct );
         printf("Distance Arm %d Point X: %f, Point Y: %f, Point Z: %f\n",1, distanceVectorArm.x, distanceVectorArm.y, distanceVectorArm.z);
         printf("Distance Hand %d Point X: %f, Point Y: %f, Point Z: %f\n",1, distanceVectorHand.x, distanceVectorHand.y, distanceVectorHand.z);
@@ -675,11 +673,11 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 //        }
 
         // MOVER NINJA
-//        if (((round(handNode->getPosition().x/100)*100) == (round(ninjaPosOriginal.x/100)*100)) && ((round(handNode->getPosition().z/100)*100) == (round(ninjaPosOriginal.z/100)*100))){
-//            ninjaPosOriginal = ninjaPosOriginal + (handScenePos - handPosBefore);
-//            ninjaNode->setPosition(ninjaPosOriginal);
-//            printf("Toque!\n");
-//        }
+        if (((round(handNode->_getDerivedPosition().x/100)*100) == (round(ninjaPosOriginal.x/100)*100)) && ((round(handNode->_getDerivedPosition().z/100)*100) == (round(ninjaPosOriginal.z/100)*100))){
+            ninjaPosOriginal = ninjaPosOriginal + (handNode->_getDerivedPosition() - handPosBefore);
+            ninjaNode->setPosition(ninjaPosOriginal);
+            printf("Toque!\n");
+        }
 
         // FIN MOVER NINJA
 
@@ -693,10 +691,19 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
         // FIN PRUEBA
 
         Ogre::Vector3 distanceVectorArmBefore = kinectWristNode->getPosition() - elbowPosFirst;
-        armNode->pitch(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getPitch());
-        armNode->roll(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getRoll());
+//        armNode->pitch(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getPitch());
+//        armNode->roll(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getRoll());
 
-        handPosBefore = handScenePos;
+        armNode->pitch(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getPitch());
+        armNode->roll(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getRoll());
+
+        printf("Arm Degrees Pitch %.2f\n", distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getPitch().valueAngleUnits());
+        //printf("Arm Degrees Roll %e\n", distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getRoll().valueDegrees());
+
+        distanceVectorTotalBefore = distanceVectorTotal;
+
+
+        handPosBefore = handNode->_getDerivedPosition();
         handScenePos = 0;
         wristPosBefore = armScenePos;
         armScenePos = 0;
