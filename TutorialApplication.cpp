@@ -23,6 +23,70 @@ This source file is part of the
 #include <thread>
 #include <iostream>
 
+#define WIND
+#define ARRAY_SIZE_X 5
+#define ARRAY_SIZE_Y 5
+
+
+
+// this pattern updates the scenenode position when it changes within the bullet simulation
+// taken from BulletMotionState docs page24
+class MyMotionState : public btMotionState {
+public:
+    MyMotionState(const btTransform &initialpos, Ogre::SceneNode *node) {
+        mVisibleobj = node;
+        mPos1 = initialpos;
+    }
+    virtual ~MyMotionState() {    }
+    void setNode(Ogre::SceneNode *node) {
+        mVisibleobj = node;
+    }
+    virtual void getWorldTransform(btTransform &worldTrans) const {
+        worldTrans = mPos1;
+    }
+    virtual void setWorldTransform(const btTransform &worldTrans) {
+        if(NULL == mVisibleobj) return; // silently return before we set a node
+        btQuaternion rot = worldTrans.getRotation();
+        mVisibleobj->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
+        btVector3 pos = worldTrans.getOrigin();
+        // TODO **** XXX need to fix this up such that it renders properly since this doesnt know the scale of the node
+        // also the getCube function returns a cube that isnt centered on Z
+        mVisibleobj->setPosition(pos.x(), pos.y()+5, pos.z()-5);
+    }
+protected:
+    Ogre::SceneNode *mVisibleobj;
+    btTransform mPos1;
+};
+
+class MyCollisionObject : public btCollisionObject {
+public:
+    MyCollisionObject(const btTransform &initialpos, Ogre::SceneNode *node){
+        mVisibleobj = node;
+        mPos1 = initialpos;
+        setWorldTransform(initialpos);
+    }
+    virtual ~MyCollisionObject() {    }
+    void setNode(Ogre::SceneNode *node) {
+        mVisibleobj = node;
+    }
+    virtual void getWorldTransform(btTransform &worldTrans) const {
+        worldTrans = mPos1;
+    }
+    virtual void setWorldTransform(const btTransform &worldTrans) {
+        if(NULL == mVisibleobj) return; // silently return before we set a node
+        btQuaternion rot = worldTrans.getRotation();
+        mVisibleobj->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
+        btVector3 pos = worldTrans.getOrigin();
+        // TODO **** XXX need to fix this up such that it renders properly since this doesnt know the scale of the node
+        // also the getCube function returns a cube that isnt centered on Z
+        mVisibleobj->setPosition(pos.x(), pos.y()+5, pos.z()-5);
+    }
+protected:
+    Ogre::SceneNode *mVisibleobj;
+    btTransform mPos1;
+};
+
+
 xn::Context context_hand;
 xn::Context context_elbow;
 xn::ScriptNode scriptNode;
@@ -47,6 +111,12 @@ Ogre::Vector3 ninjaPosOriginal;
 Ogre::Vector3 distanceVectorTotalBefore = Ogre::Vector3(0,0,0);
 Ogre::Real dotProductMax = 0;
 Ogre::Real dotProductMin = 9999999999999999;
+Forests::PagedGeometry *trees;
+Ogre::SceneNode *node;
+Ogre::SceneNode *cubeNodes[16];
+
+
+
 //XnSkeletonJointTransformation torsoJoint;
 
 int lectura = 0;
@@ -74,6 +144,8 @@ int elbowTask(){
     }
     printf("Reading config from: '%s'\n", fn);
     nRetVal = context_elbow.InitFromXmlFile(fn, scriptNode_elbow, &errors);
+    //fflush(stdout);
+
 
     if (nRetVal_Elbow == XN_STATUS_NO_NODE_PRESENT)
     {
@@ -128,86 +200,45 @@ int elbowTask(){
     return 0;
 }
 
-int kinectTask(){
-    printf("kinectTask\n");
+Ogre::ManualObject* createCubeMesh(Ogre::String name, Ogre::String matName) {
 
-//    const char *fn = NULL;
-//    if (fileExists(SAMPLE_XML_PATH_LOCAL)) fn = SAMPLE_XML_PATH_LOCAL;
-//    else {
-//        printf("Could not find '%s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL);
-//        //return XN_STATUS_ERROR;
-//    }
-//    printf("Reading config from: '%s'\n", fn);
-//    nRetVal = context_hand.InitFromXmlFile(fn, scriptNode, &errors);
+   Ogre::ManualObject* cube = new Ogre::ManualObject(name);
 
+   cube->begin(matName);
 
-//    if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
-//    {
-//        XnChar strError[1024];
-//        errors.ToString(strError, 1024);
-//        printf("%s\n", strError);
-//        return (nRetVal);
-//    }
-//    else if (nRetVal != XN_STATUS_OK)
-//    {
-//        printf("Open failed: %s\n", xnGetStatusString(nRetVal));
-//        return (nRetVal);
-//    }
+   cube->position(0.5,-0.5,1.0);cube->normal(0.408248,-0.816497,0.408248);cube->textureCoord(1,0);
+   cube->position(-0.5,-0.5,0.0);cube->normal(-0.408248,-0.816497,-0.408248);cube->textureCoord(0,1);
+   cube->position(0.5,-0.5,0.0);cube->normal(0.666667,-0.333333,-0.666667);cube->textureCoord(1,1);
+   cube->position(-0.5,-0.5,1.0);cube->normal(-0.666667,-0.333333,0.666667);cube->textureCoord(0,0);
+   cube->position(0.5,0.5,1.0);cube->normal(0.666667,0.333333,0.666667);cube->textureCoord(1,0);
+   cube->position(-0.5,-0.5,1.0);cube->normal(-0.666667,-0.333333,0.666667);cube->textureCoord(0,1);
+   cube->position(0.5,-0.5,1.0);cube->normal(0.408248,-0.816497,0.408248);cube->textureCoord(1,1);
+   cube->position(-0.5,0.5,1.0);cube->normal(-0.408248,0.816497,0.408248);cube->textureCoord(0,0);
+   cube->position(-0.5,0.5,0.0);cube->normal(-0.666667,0.333333,-0.666667);cube->textureCoord(0,1);
+   cube->position(-0.5,-0.5,0.0);cube->normal(-0.408248,-0.816497,-0.408248);cube->textureCoord(1,1);
+   cube->position(-0.5,-0.5,1.0);cube->normal(-0.666667,-0.333333,0.666667);cube->textureCoord(1,0);
+   cube->position(0.5,-0.5,0.0);cube->normal(0.666667,-0.333333,-0.666667);cube->textureCoord(0,1);
+   cube->position(0.5,0.5,0.0);cube->normal(0.408248,0.816497,-0.408248);cube->textureCoord(1,1);
+   cube->position(0.5,-0.5,1.0);cube->normal(0.408248,-0.816497,0.408248);cube->textureCoord(0,0);
+   cube->position(0.5,-0.5,0.0);cube->normal(0.666667,-0.333333,-0.666667);cube->textureCoord(1,0);
+   cube->position(-0.5,-0.5,0.0);cube->normal(-0.408248,-0.816497,-0.408248);cube->textureCoord(0,0);
+   cube->position(-0.5,0.5,1.0);cube->normal(-0.408248,0.816497,0.408248);cube->textureCoord(1,0);
+   cube->position(0.5,0.5,0.0);cube->normal(0.408248,0.816497,-0.408248);cube->textureCoord(0,1);
+   cube->position(-0.5,0.5,0.0);cube->normal(-0.666667,0.333333,-0.666667);cube->textureCoord(1,1);
+   cube->position(0.5,0.5,1.0);cube->normal(0.666667,0.333333,0.666667);cube->textureCoord(0,0);
 
-    xn::DepthGenerator depth;
-    nRetVal = context_hand.FindExistingNode(XN_NODE_TYPE_DEPTH, depth);
-    CHECK_RC(nRetVal, "Find depth generator");
+   cube->triangle(0,1,2);      cube->triangle(3,1,0);
+   cube->triangle(4,5,6);      cube->triangle(4,7,5);
+   cube->triangle(8,9,10);      cube->triangle(10,7,8);
+   cube->triangle(4,11,12);   cube->triangle(4,13,11);
+   cube->triangle(14,8,12);   cube->triangle(14,15,8);
+   cube->triangle(16,17,18);   cube->triangle(16,19,17);
+   cube->end();
 
-    XnFPSData xnFPS;
-    nRetVal = xnFPSInit(&xnFPS, 180);
-    CHECK_RC(nRetVal, "FPS Init");
-
-    HandTracker mHandTracker(context_hand);
-    XnStatus rc_hand= mHandTracker.Init();
-    //std::cout << "Status: " << rc << std::endl;
-
-    rc_hand = mHandTracker.Run();
-
-    while (isOpen)
-    {
-
-        nRetVal = context_hand.WaitOneUpdateAll(depth);
-        if (nRetVal != XN_STATUS_OK)
-        {
-            printf("UpdateData Hand failed: %s\n", xnGetStatusString(nRetVal));
-            continue;
-        }
-
-        const TrailHistory&	history_hand = mHandTracker.GetHistory();
-        const HistoryIterator	hend_hand = history_hand.End();
-        for(HistoryIterator		hit_hand = history_hand.Begin(); hit_hand != hend_hand; ++hit_hand)
-        {
-
-            // Dump the history to local buffer
-            int				numpoints_hand = 0;
-            const Trail&	trail_hand = hit_hand->Value();
-
-            const TrailIterator	tit_hand = trail_hand.Begin();
-
-                XnPoint3D	point = *tit_hand;
-                handPos[hit_hand->Key()] = Ogre::Vector3(point.X, point.Y, point.Z);
-                //printf("Kinect %d Punto X: %f, Punto Y: %f, Punto Z: %f\n",hit->Key(), kinectPos[hit->Key()].x, kinectPos[hit->Key()].y, kinectPos[hit->Key()].z);
-
-                ++numpoints_hand;
-
-            assert(numpoints_hand <= MAX_HAND_TRAIL_LENGTH);
-        }
-
-
-    }
-
-    depth.Release();
-    scriptNode.Release();
-    context_hand.Release();
-    context_elbow.Release();
-
-    return 0;
+   return cube;
 }
+
+
 
 //-------------------------------------------------------------------------------------
 BasicTutorial3::BasicTutorial3(void)
@@ -227,7 +258,7 @@ void BasicTutorial3::destroyScene(void)
 //-------------------------------------------------------------------------------------
 void getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
 {
-    img.load("terrain.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    img.load("terrain3.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     if (flipX)
         img.flipAroundY();
     if (flipY)
@@ -319,6 +350,7 @@ void BasicTutorial3::createScene(void)
 {
 //    mCamera->setPosition(Ogre::Vector3(1683, 1000, 2116));
 //    mCamera->lookAt(Ogre::Vector3(1683, 1000, 1660));
+
     mCamera->setPosition(Ogre::Vector3(1683, 300, 3000));
     mCamera->lookAt(Ogre::Vector3(1963, 50, 1660));
     mCamera->setNearClipDistance(0.1);
@@ -327,6 +359,13 @@ void BasicTutorial3::createScene(void)
     if (mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_INFINITE_FAR_PLANE))
     {
         mCamera->setFarClipDistance(0);   // enable infinite far clip distance if we can
+    }
+
+    if (mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_VERTEX_PROGRAM)){
+        printf("Vertex Shaders Available\n");
+    }
+    else{
+        printf("Vertex Shaders Unavailable\n");
     }
 
     Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
@@ -369,25 +408,31 @@ void BasicTutorial3::createScene(void)
     }
 
     mTerrainGroup->freeTemporaryResources();
+    //Ogre::Plane plane(Ogre::Vector3::UNIT_Y, 0);
+    //Ogre::MeshManager::getSingleton().createPlane("ground",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, plane,1500,1500,20,20,true,1,5,5,Ogre::Vector3::UNIT_Z);
+
 
     //mSceneMgr->setSkyBox(true, "Examples/SpaceSkyBox", 5000, false);
     mSceneMgr->setSkyDome(true, "Examples/CloudySky", 5, 8);
 
-    // NINJA
+    //// WILLOW
 
-    Ogre::Entity *ent = mSceneMgr->createEntity("Ninja", "leaves2.mesh");
-    Ogre::SceneNode *node = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
-    ent->setCastShadows(true);
-    node->attachObject(ent);
+//    Ogre::Entity *ent = mSceneMgr->createEntity("Ninja", "stm_37.mesh");
+//    node = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
+//    ent->setCastShadows(true);
+//    node->attachObject(ent);
 
-    node->setPosition(1683, 0, 1660);
-    node->pitch(Ogre::Degree(90));
+//    //node->setPosition(1683, 300, 1660);
+//    //node->setPosition(0, 0, 0);
+//    //node->pitch(Ogre::Degree(90));
 
-    node->setScale(200,200,200);
+//    node->setScale(100,100,100);
 
-    ninjaPosOriginal = node->getPosition();
+//    ninjaPosOriginal = node->getPosition();
 
-//    // pEntNode is the node the Entity is attached to
+    //Ogre::VertexData vertexData = ent->getVertexDataForBinding();
+
+    //    // pEntNode is the node the Entity is attached to
 //    // entPos is the current position you're using to place the entity
 
 //    Ogre::SceneNode* parent = mSceneMgr->getRootSceneNode()->createChildSceneNode("ParentNinjaNode");
@@ -401,30 +446,46 @@ void BasicTutorial3::createScene(void)
 //    node->setPosition(Ogre::Vector3(0,100,0));
 //    //parent->pitch(Ogre::Degree(90));
 
-    // LINE
+    //// PAGEDGEOMETRY TEST
 
-    Ogre::ManualObject* myManualObject =  mSceneMgr->createManualObject("manual1");
-    Ogre::SceneNode* myManualObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual1_node");
+//    trees = new Forests::PagedGeometry();
+//    trees->setCamera(mCamera);   //Set the camera so PagedGeometry knows how to calculate LODs
+//    trees->setPageSize(50);   //Set the size of each page of geometry
+//    trees->setInfinite();      //Use infinite paging mode
+//    trees->addDetailLevel<Forests::BatchPage>(90, 30);      //Use batches up to 150 units away, and fade for 30 more units
+//    trees->addDetailLevel<Forests::ImpostorPage>(700, 50);   //Use impostors up to 400 units, and for for 50 more units
 
-    // NOTE: The second parameter to the create method is the resource group the material will be added to.
-    // If the group you name does not exist (in your resources.cfg file) the library will assert() and your program will crash
-    Ogre::MaterialPtr myManualObjectMaterial = Ogre::MaterialManager::getSingleton().create("manual1Material","General");
-    myManualObjectMaterial->setReceiveShadows(false);
-    myManualObjectMaterial->getTechnique(0)->setLightingEnabled(true);
-    myManualObjectMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
-    myManualObjectMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,1);
-    myManualObjectMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
+//    //Create a new TreeLoader2D object
+//    Forests::TreeLoader2D *treeLoader = new Forests::TreeLoader2D(trees, Forests::TBounds(0, 0, 1500, 1500));
+//    treeLoader->addTree(ent , node->getPosition()); // pos, yaw, scale of myEntity
+//    trees->setCustomParam(ent->getName(),"windFactorX", 10000 / 1);
+//    trees->setCustomParam(ent->getName(),"windFactorY", 0.0005 / 1);
+
+    //// LINE
+
+//    Ogre::ManualObject* myManualObject =  mSceneMgr->createManualObject("manual1");
+//    Ogre::SceneNode* myManualObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual1_node");
+
+//    // NOTE: The second parameter to the create method is the resource group the material will be added to.
+//    // If the group you name does not exist (in your resources.cfg file) the library will assert() and your program will crash
+//    Ogre::MaterialPtr myManualObjectMaterial = Ogre::MaterialManager::getSingleton().create("manual1Material","General");
+//    myManualObjectMaterial->setReceiveShadows(false);
+//    myManualObjectMaterial->getTechnique(0)->setLightingEnabled(true);
+//    myManualObjectMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,0,0);
+//    myManualObjectMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,0);
+//    myManualObjectMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,0);
 
 
-    myManualObject->begin("manual1Material", Ogre::RenderOperation::OT_LINE_LIST);
-    myManualObject->position(1750, 0, 2142);
-    //myManualObject->position(1683, 1, 2116);
-    myManualObject->position(1750,450, 2142);
+//    myManualObject->begin("manual1Material", Ogre::RenderOperation::OT_LINE_LIST);
+//    myManualObject->position(1683, 0, 1660);
 
-    // etc
-    myManualObject->end();
+//    //myManualObject->position(1683, 1, 2116);
+//    myManualObject->position(1683, 1000, 1660);
 
-    myManualObjectNode->attachObject(myManualObject);
+//    // etc
+//    myManualObject->end();
+
+//    myManualObjectNode->attachObject(myManualObject);
 
     /*Ogre::ManualObject* myManualObject2 =  mSceneMgr->createManualObject("manual2");
     Ogre::SceneNode* myManualObjectNode2 = mSceneMgr->getRootSceneNode()->createChildSceneNode("manual2_node");
@@ -493,11 +554,30 @@ void BasicTutorial3::createScene(void)
     //Ogre::Vector3 distanceNinjaCamera = node->getPosition().distance(mCamera->getPosition());
     //printf("Distance Ninja-Camera: %d, %d, %d", distanceNinjaCamera.x, distanceNinjaCamera.y, distanceNinjaCamera.z);
 
-    Ogre::Real distanceNinjaCamera = node->getPosition().distance(Ogre::Vector3(1683,1,2116));
-    printf("Distance Ninja-Camera: %.0f\n", distanceNinjaCamera);
+    //// CUBES
+
+    Ogre::ManualObject *cmo = createCubeMesh("manual", "");
+    cmo->convertToMesh("cube");
+
+    for (int i = 0; i < 16; i++){
+
+        std::stringstream ss;
+        ss << "Cube " << i;
+        //std::string s = ss.str();
+        Ogre::Entity *cubeEntity = mSceneMgr->createEntity(ss.str(), "cube.mesh");
+        cubeEntity->setCastShadows(true);
+        Ogre::SceneNode *cubeNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        cubeNode->attachObject(cubeEntity);
+        cubeNode->setScale(Ogre::Vector3(1,1,1)); // for some reason converttomesh multiplied dimensions by 10
+        cubeNode->pitch(Ogre::Degree(90));
+        cubeNodes[i] = cubeNode;
+    }
 
 
-    // HAND
+    //// HAND
+
+    //    Ogre::Real distanceNinjaCamera = node->getPosition().distance(Ogre::Vector3(1683,1,2116));
+    //    printf("Distance Ninja-Camera: %.0f\n", distanceNinjaCamera);
 
     Ogre::Entity *handEnt = mSceneMgr->createEntity("RightHand", "hand.mesh");
 
@@ -521,7 +601,7 @@ void BasicTutorial3::createScene(void)
     armNode->attachObject(armEnt);
     //rightNode->setScale(40.2, 40.2, 40.2);
 
-    armNode->translate(1750, 100, 2542);
+    armNode->setPosition(1750, 100, 2542);
     //armNode->pitch(Ogre::Degree(133));
     //armNode->roll(Ogre::Degree(20));
     armNode->setScale(1,1,1);
@@ -557,6 +637,7 @@ void BasicTutorial3::createScene(void)
     Ogre::SceneNode *kinectWristNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("KinectWrist");
     Ogre::SceneNode *kinectHandNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("KinectHand");
 
+    createBulletSim();
 
 }
 //-------------------------------------------------------------------------------------
@@ -564,13 +645,236 @@ void BasicTutorial3::createFrameListener(void)
 {
     BaseApplication::createFrameListener();
     mTrayMgr->hideAll();
+    printf("createFrameListener\n");
+
+    fflush(stdout);
 
     //mInfoLabel = mTrayMgr->createLabel(OgreBites::TL_TOP, "TInfo", "", 350);
 }
+
+void BasicTutorial3::createBulletSim(void) {
+    //collision configuration contains default setup for memory, collision setup. Advanced users can create their own configuration.
+    collisionConfiguration = new btDefaultCollisionConfiguration();
+
+    //use the default collision dispatcher. For parallel processing you can use a diffent dispatcher (see Extras/BulletMultiThreaded)
+    dispatcher = new   btCollisionDispatcher(collisionConfiguration);
+
+    //btDbvtBroadphase is a good general purpose broadphase. You can also try out btAxis3Sweep.
+    overlappingPairCache = new btDbvtBroadphase();
+
+    //the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
+    solver = new btSequentialImpulseConstraintSolver;
+
+    dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,overlappingPairCache,solver,collisionConfiguration);
+    dynamicsWorld->setGravity(btVector3(0,-100,0));
+
+    //create a few basic rigid bodies
+    // start with ground plane, 1500, 1500
+    btCollisionShape* groundShape = new btBoxShape(btVector3(btScalar(5000.),btScalar(1.),btScalar(5000.)));
+
+    collisionShapes.push_back(groundShape);
+
+    btTransform groundTransform;
+    groundTransform.setIdentity();
+    groundTransform.setOrigin(btVector3(0,0,0));
+
+    {
+        btScalar mass(0.);
+
+        //rigidbody is dynamic if and only if mass is non zero, otherwise static
+        bool isDynamic = (mass != 0.f);
+
+        btVector3 localInertia(0,0,0);
+        if (isDynamic)
+        groundShape->calculateLocalInertia(mass,localInertia);
+
+        // lathe - this plane isnt going to be moving so i dont care about setting the motion state
+        //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
+        btDefaultMotionState* myMotionState = new btDefaultMotionState(groundTransform);
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,myMotionState,groundShape,localInertia);
+        btRigidBody* body = new btRigidBody(rbInfo);
+
+        //add the body to the dynamics world
+        dynamicsWorld->addRigidBody(body);
+    }
+
+    {
+
+        btVector3 x(-ARRAY_SIZE_X, 8.0f,-20.f);
+        btVector3 y;
+        btVector3 deltaX(50,100, 0.f);
+        btVector3 deltaY(100, 0.0f,0.f);
+        int z = 0;
+
+        for (int i = 0; i < ARRAY_SIZE_X; ++i)
+        {
+            y = x;
+
+            for (int  j = i; j < ARRAY_SIZE_Y; ++j)
+            {
+                addDynamicRigidBody(cubeNodes[z], btVector3(1683, 0, 1660) + y);
+                y += deltaY;
+                z++;
+            }
+
+            x += deltaX;
+        }
+
+    }
+
+    addDynamicRigidBody(cubeNodes[15], btVector3(1760, 300, 2442) );
+    //addDinamicRigidBody(mSceneMgr->getSceneNode("ParentArmNode"), btVector3(1683, 0, 1660) );
+    //dynamicsWorld->addCollisionObject();
+
+    {
+        Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
+        Ogre::Node *handNode = armNode->getChild("RightHandNode");
+        Ogre::Vector3 handPos = armNode->getPosition();
+        printf("Hand Node Derived Position (%d, %d, %d)\n", handPos.x,  handPos.y,  handPos.z);
+
+        //btCollisionShape *mPlayerBox = new btBoxShape(btVector3(25,1,600));
+        btCollisionShape *mPlayerBox = new btCylinderShape(btVector3(35,600,1));
+        collisionShapes.push_back(mPlayerBox);
+        btTransform playerWorld;
+        playerWorld.setIdentity();
+        //playerPos is a D3DXVECTOR3 that holds the camera position.
+        //playerWorld.setOrigin(btVector3(handPos.x, handPos.y, handPos.z));
+        playerWorld.setOrigin(btVector3(1750, 50, 2542));
+        playerWorld.setRotation(btQuaternion(0.0,-1.6,0.0));
+        btCollisionObject *mPlayerObject = new MyCollisionObject(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
+        //btCollisionObject *mPlayerObject = new btCollisionObject();
+        mPlayerObject->setWorldTransform(playerWorld);
+        mPlayerObject->setCollisionShape(mPlayerBox);
+        mPlayerObject->forceActivationState(DISABLE_DEACTIVATION);//maybe not needed
+        dynamicsWorld->addCollisionObject(mPlayerObject);
+    }
+}
+
+void BasicTutorial3::addDynamicRigidBody(Ogre::SceneNode *bodyNode, btVector3 position){
+    //create a dynamic rigidbody
+
+    btCollisionShape* colShape = new btBoxShape(btVector3(50,50,50));
+    //btCollisionShape* colShape = new btConeShape(100, 0);
+    //btCollisionShape* colShape = new btSphereShape(btScalar(1.));
+    collisionShapes.push_back(colShape);
+
+    // Create Dynamic Objects
+    btTransform startTransform;
+    startTransform.setIdentity();
+
+    btScalar   mass(1.f);
+
+    //rigidbody is dynamic if and only if mass is non zero, otherwise static
+    bool isDynamic = (mass != 0.f);
+
+
+    btVector3 localInertia(0,0,-1.0);
+    if (isDynamic)
+    colShape->calculateLocalInertia(mass,localInertia);
+
+    //startTransform.setOrigin(btVector3(0,200,0));
+    startTransform.setOrigin(position);
+    // *** give it a slight twist so it bouncees more interesting
+    //startTransform.setRotation(btQuaternion(btVector3(1.0, 1.0, 0.0), 0.6));
+
+    //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
+    //btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
+    //Ogre::SceneNode *cubeNode = mSceneMgr->getSceneNode("CubeNode");
+
+    MyMotionState* motionState = new MyMotionState(startTransform, bodyNode);
+    //btDefaultMotionState* motionState = new btDefaultMotionState(startTransform);
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,motionState,colShape,localInertia);
+    btRigidBody* body = new btRigidBody(rbInfo);
+
+    dynamicsWorld->addRigidBody(body);
+}
+
+//void BasicTutorial3::createPGDemo(void)
+//{
+
+//    //-------------------------------------- LOAD TREES --------------------------------------
+//    //Create and configure a new PagedGeometry instance
+//    trees = new Forests::PagedGeometry();
+//    trees->setCamera(mCamera);	//Set the camera so PagedGeometry knows how to calculate LODs
+//    trees->setPageSize(50);	//Set the size of each page of geometry
+//    trees->setInfinite();		//Use infinite paging mode
+//    trees->setShadersEnabled(true);
+
+//#ifdef WIND
+//    //WindBatchPage is a variation of BatchPage which includes a wind animation shader
+//    trees->addDetailLevel<Forests::WindBatchPage>(70, 30);		//Use batches up to 70 units away, and fade for 30 more units
+//#else
+//    trees->addDetailLevel<Forests::BatchPage>(70, 30);		//Use batches up to 70 units away, and fade for 30 more units
+//#endif
+//    trees->addDetailLevel<Forests::ImpostorPage>(5000, 50);	//Use impostors up to 400 units, and for for 50 more units
+
+//    //Create a new TreeLoader2D object
+//    Forests::TreeLoader2D *treeLoader = new Forests::TreeLoader2D(trees, Forests::TBounds(0, 0, 1500, 1500));
+//    trees->setPageLoader(treeLoader);	//Assign the "treeLoader" to be used to load geometry for the PagedGeometry instance
+
+//    //Supply a height function to TreeLoader2D so it can calculate tree Y values
+////    HeightFunction::initialize(mSceneMgr);
+////    treeLoader->setHeightFunction(&HeightFunction::getTerrainHeight);
+
+//    //[NOTE] This sets the color map, or lightmap to be used for trees. All trees will be colored according
+//    //to this texture. In this case, the shading of the terrain is used so trees will be shadowed
+//    //just as the terrain is (this should appear like the terrain is casting shadows on the trees).
+//    //You may notice that TreeLoader2D / TreeLoader3D doesn't have a setMapBounds() function as GrassLoader
+//    //does. This is because the bounds you specify in the TreeLoader2D constructor are used to apply
+//    //the color map.
+//    treeLoader->setColorMap("terrain_lightmap.jpg");
+
+//    //Load a tree entity
+//    Ogre::Entity *tree1 = mSceneMgr->createEntity("Tree1", "fir06_30.mesh");
+//    //Ogre::Entity *tree1 = mSceneMgr->createEntity("Tree1", "leaves2.mesh");
+
+
+//    Ogre::Entity *tree2 = mSceneMgr->createEntity("Tree2", "fir14_25.mesh");
+//    Ogre::Entity *tree3 = mSceneMgr->getEntity("Ninja");
+//    Ogre::Node *ninjaNode = mSceneMgr->getRootSceneNode()->getChild("NinjaNode");
+
+
+
+//#ifdef WIND
+//    trees->setCustomParam(tree1->getName(), "windFactorX", 15);
+//    trees->setCustomParam(tree1->getName(), "windFactorY", 0.01);
+//    trees->setCustomParam(tree2->getName(), "windFactorX", 22);
+//    trees->setCustomParam(tree2->getName(), "windFactorY", 0.013);
+
+//    trees->setCustomParam("Ninja", "windFactorX", 100);
+//    trees->setCustomParam("Ninja", "windFactorY", 0.100);
+//#endif
+
+//    //Randomly place 10000 copies of the tree on the terrain
+//    Ogre::Vector3 position = Ogre::Vector3::ZERO;
+//    Ogre::Radian yaw;
+//    Ogre::Real scale;
+//    for (int i = 0; i < 60000; i++){
+//        yaw = Ogre::Degree(Ogre::Math::RangeRandom(0, 360));
+
+//        position.x = Ogre::Math::RangeRandom(0, 1500);
+//        position.z = Ogre::Math::RangeRandom(0, 1500);
+
+//        scale = Ogre::Math::RangeRandom(0.07f, 0.12f);
+
+//        //[NOTE] Unlike TreeLoader3D, TreeLoader2D's addTree() function accepts a Vector2D position (x/z)
+//        //The Y value is calculated during runtime (to save memory) from the height function supplied (above)
+//        if (Ogre::Math::UnitRandom() < 0.5f)
+//            treeLoader->addTree(tree1, position, yaw, scale);
+//        else
+//            treeLoader->addTree(tree2, position, yaw, scale);
+//    }
+//    //treeLoader->addTree(tree3, ninjaNode->getPosition(), ninjaNode->getOrientation().getYaw(), 200);
+//    //addPG(trees);
+
+//}
 //-------------------------------------------------------------------------------------
 bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
     bool ret = BaseApplication::frameRenderingQueued(evt);
+    //trees->update();
+    dynamicsWorld->stepSimulation(evt.timeSinceLastFrame,50);
+
 
     /*if (mTerrainGroup->isDerivedDataUpdateInProgress())
     {
@@ -606,14 +910,15 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
         }
 
 
-        Ogre::Node *ninjaNode = mSceneMgr->getRootSceneNode()->getChild("NinjaNode");
+        //Ogre::Node *ninjaNode = mSceneMgr->getRootSceneNode()->getChild("NinjaNode");
         //Ogre::Node *handNode = mSceneMgr->getRootSceneNode()->getChild("RightHandNode");
         //Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("Arm");
         Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
+        Ogre::Node *handNode = armNode->getChild("RightHandNode");
+
         Ogre::Node *kinectElbowNode = mSceneMgr->getRootSceneNode()->getChild("KinectElbow");
         Ogre::Node *kinectWristNode = mSceneMgr->getRootSceneNode()->getChild("KinectWrist");
         Ogre::Node *kinectHandNode = mSceneMgr->getRootSceneNode()->getChild("KinectHand");
-        Ogre::Node *handNode = armNode->getChild("RightHandNode");
 
 //        Ogre::Vector3 wristPitchAngle = Ogre::Vector3(0,wristPos[1].y,wristPos[1].z);
 //        Ogre::Vector3 wristPitchAngleFirst = Ogre::Vector3(0,wristPosFirst.y,wristPosFirst.z);
@@ -672,12 +977,12 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 //            printf("Normal: %.2f\n", normal);
 //        }
 
-        // MOVER NINJA
-        if (((round(handNode->_getDerivedPosition().x/100)*100) == (round(ninjaPosOriginal.x/100)*100)) && ((round(handNode->_getDerivedPosition().z/100)*100) == (round(ninjaPosOriginal.z/100)*100))){
-            ninjaPosOriginal = ninjaPosOriginal + (handNode->_getDerivedPosition() - handPosBefore);
-            ninjaNode->setPosition(ninjaPosOriginal);
-            printf("Toque!\n");
-        }
+        //// MOVER NINJA
+//        if (((round(handNode->_getDerivedPosition().x/100)*100) == (round(ninjaPosOriginal.x/100)*100)) && ((round(handNode->_getDerivedPosition().z/100)*100) == (round(ninjaPosOriginal.z/100)*100))){
+//            ninjaPosOriginal = ninjaPosOriginal + (handNode->_getDerivedPosition() - handPosBefore);
+//            ninjaNode->setPosition(ninjaPosOriginal);
+//            printf("Toque!\n");
+//        }
 
         // FIN MOVER NINJA
 
@@ -723,37 +1028,11 @@ extern "C" {
         // Create application object*/
         BasicTutorial3 app;
 
-//        const char *fn = NULL;
-//        if (fileExists(SAMPLE_XML_PATH_LOCAL)) fn = SAMPLE_XML_PATH_LOCAL;
-//        else {
-//            printf("Could not find '%s'. Aborting.\n" , SAMPLE_XML_PATH_LOCAL);
-//            //return XN_STATUS_ERROR;
-//        }
-//        printf("Reading config from: '%s'\n", fn);
-//        nRetVal = context_hand.InitFromXmlFile(fn, scriptNode, &errors);
-
-
-//        if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
-//        {
-//            XnChar strError[1024];
-//            errors.ToString(strError, 1024);
-//            printf("%s\n", strError);
-//            return (nRetVal);
-//        }
-//        else if (nRetVal != XN_STATUS_OK)
-//        {
-//            printf("Open failed: %s\n", xnGetStatusString(nRetVal));
-//            return (nRetVal);
-//        }
-
-        //std::thread t1(kinectTask);
         std::thread t2(elbowTask);
 
         try {
             isOpen = true;
             app.go();
-            //t1.join();
-            //t2.join();
         } catch( Ogre::Exception& e ) {
             std::cerr << "An exception has occured: " <<
                 e.getFullDescription().c_str() << std::endl;

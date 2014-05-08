@@ -39,6 +39,7 @@ public:
 protected:
     virtual void createScene(void);
     Ogre::Timer *mTimer;
+
 };
 
 #endif // #ifndef __TutorialApplication_h_

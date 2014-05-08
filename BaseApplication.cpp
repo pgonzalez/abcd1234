@@ -38,7 +38,8 @@ BaseApplication::BaseApplication(void)
     mShutDown(false),
     mInputManager(0),
     mMouse(0),
-    mKeyboard(0)
+    mKeyboard(0),
+    pgs(0)
 {
 }
 
@@ -74,6 +75,11 @@ bool BaseApplication::configure(void)
             return false;
         }
     }
+
+//    if(!(mRoot->restoreConfig() || mRoot->showConfigDialog()))
+//    {
+//       return false;
+//    }
 }
 //-------------------------------------------------------------------------------------
 void BaseApplication::chooseSceneManager(void)
@@ -144,8 +150,14 @@ void BaseApplication::createFrameListener(void)
     mDetailsPanel->setParamValue(9, "Bilinear");
     mDetailsPanel->setParamValue(10, "Solid");
     mDetailsPanel->hide();
+    std::vector<Forests::PagedGeometry *> pgs;
+
+    this->pgs = pgs;
+
 
     mRoot->addFrameListener(this);
+
+
 }
 //-------------------------------------------------------------------------------------
 void BaseApplication::destroyScene(void)
@@ -273,6 +285,8 @@ bool BaseApplication::setup(void)
 
     // Create the scene
     createScene();
+    //createPGDemo();
+
 
     createFrameListener();
 
@@ -281,11 +295,21 @@ bool BaseApplication::setup(void)
 //-------------------------------------------------------------------------------------
 bool BaseApplication::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
+
     if(mWindow->isClosed())
         return false;
 
     if(mShutDown)
         return false;
+    //if(pgs.)
+    //{
+//        for(std::vector<Forests::PagedGeometry *>::iterator it=pgs.begin(); it!=pgs.end(); it++)
+//        {
+//            (*it)->update();
+//            printf("createPGDemo\n");
+
+       // }
+    //}
 
     //Need to capture/update each device
     mKeyboard->capture();
@@ -307,6 +331,7 @@ bool BaseApplication::frameRenderingQueued(const Ogre::FrameEvent& evt)
             mDetailsPanel->setParamValue(7, Ogre::StringConverter::toString(mCamera->getDerivedOrientation().z));
         }
     }
+
 
     return true;
 }

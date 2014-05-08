@@ -9,9 +9,13 @@ TEMPLATE = app
 unix {
     # You may need to change this include directory
     INCLUDEPATH += /usr/local/lib/OGRE
+    #INCLUDEPATH += /usr/local/include/OGRE/Paging
+    INCLUDEPATH += /usr/local/include/OGRE/Terrain
     #INCLUDEPATH += /usr/local/include/libfreenect
     INCLUDEPATH += /usr/include/ni
     INCLUDEPATH += /usr/include/nite
+    INCLUDEPATH += /usr/include/bullet
+
     CONFIG += link_pkgconfig
     PKGCONFIG += OGRE
 
@@ -27,6 +31,9 @@ unix {
     LIBS += /usr/lib/libnimMockNodes.so
     LIBS += /usr/lib/libnimRecorder.so
     LIBS += /usr/lib/libOpenNI.so
+    LIBS += /usr/lib/x86_64-linux-gnu/libBulletDynamics.so
+    LIBS += /usr/lib/x86_64-linux-gnu/libBulletCollision.so
+    LIBS += /usr/lib/x86_64-linux-gnu/libLinearMath.so
 }
 debug {
     TARGET = $$join(TARGET,,,d)

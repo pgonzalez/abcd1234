@@ -36,6 +36,14 @@ This source file is part of the
 #include <SdkCameraMan.h>
 #include "StereoManager.h"
 
+#include "PagedGeometry/PagedGeometry.h"
+#include "PagedGeometry/GrassLoader.h"
+#include "PagedGeometry/BatchPage.h"
+#include "PagedGeometry/ImpostorPage.h"
+#include "PagedGeometry/TreeLoader2D.h"
+#include "PagedGeometry/WindBatchPage.h"
+
+
 //---------------------------------------------------------------------------
 // Includes
 //---------------------------------------------------------------------------
@@ -87,6 +95,12 @@ public:
 
     // Ogre::FrameListener
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
+    //    // PagedGeometry Test
+
+    //    Forests::PagedGeometry *trees, *grass, *bushes;
+    std::vector<Forests::PagedGeometry *> pgs;
+
+
 
 protected:
     virtual bool setup();
@@ -100,6 +114,8 @@ protected:
     virtual void setupResources(void);
     virtual void createResourceListener(void);
     virtual void loadResources(void);
+    //virtual void createPGDemo(void) = 0;
+
 
     // OIS::KeyListener
     virtual bool keyPressed( const OIS::KeyEvent &arg );
@@ -133,6 +149,10 @@ protected:
     OIS::InputManager* mInputManager;
     OIS::Mouse*    mMouse;
     OIS::Keyboard* mKeyboard;
+
+
+
+
 };
 
 #endif // #ifndef __BaseApplication_h_
