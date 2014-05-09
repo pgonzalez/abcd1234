@@ -27,6 +27,7 @@ private:
     btDiscreteDynamicsWorld* dynamicsWorld;
     btCollisionShape* groundShape;
     btAlignedObjectArray<btCollisionShape*> collisionShapes;
+
 public:
     BasicTutorial3(void);
     virtual ~BasicTutorial3(void);

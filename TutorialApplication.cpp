@@ -86,6 +86,41 @@ protected:
     btTransform mPos1;
 };
 
+class MyKinematicMotionState : public btMotionState {
+public:
+    MyKinematicMotionState(const btTransform &initialpos, Ogre::SceneNode *node) {
+        mVisibleobj = node;
+        mPos1 = initialpos;
+    }
+    virtual ~MyKinematicMotionState() {    }
+    void setNode(Ogre::SceneNode *node) {
+        mVisibleobj = node;
+    }
+    virtual void getWorldTransform(btTransform &worldTrans) const {
+        worldTrans = mPos1;
+    }
+    void setKinematicPos(btTransform &currentPos) {
+        mPos1 = currentPos;
+        btQuaternion rot = currentPos.getRotation();
+        mVisibleobj->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
+        btVector3 pos = currentPos.getOrigin();
+        mVisibleobj->setPosition(pos.x(), pos.y()+5, pos.z()-5);
+
+    }
+    virtual void setWorldTransform(const btTransform &worldTrans) {
+        if(NULL == mVisibleobj) return; // silently return before we set a node
+        btQuaternion rot = worldTrans.getRotation();
+        mVisibleobj->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
+        btVector3 pos = worldTrans.getOrigin();
+        // TODO **** XXX need to fix this up such that it renders properly since this doesnt know the scale of the node
+        // also the getCube function returns a cube that isnt centered on Z
+        mVisibleobj->setPosition(pos.x(), pos.y()+5, pos.z()-5);
+    }
+protected:
+    Ogre::SceneNode *mVisibleobj;
+    btTransform mPos1;
+};
+
 
 xn::Context context_hand;
 xn::Context context_elbow;
@@ -114,6 +149,7 @@ Ogre::Real dotProductMin = 9999999999999999;
 Forests::PagedGeometry *trees;
 Ogre::SceneNode *node;
 Ogre::SceneNode *cubeNodes[16];
+btRigidBody* arm;
 
 
 
@@ -667,6 +703,7 @@ void BasicTutorial3::createBulletSim(void) {
 
     dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,overlappingPairCache,solver,collisionConfiguration);
     dynamicsWorld->setGravity(btVector3(0,-100,0));
+    //dynamicsWorld->setGravity(btVector3(0,0,0));
 
     //create a few basic rigid bodies
     // start with ground plane, 1500, 1500
@@ -722,7 +759,7 @@ void BasicTutorial3::createBulletSim(void) {
 
     }
 
-    addDynamicRigidBody(cubeNodes[15], btVector3(1760, 300, 2442) );
+    addDynamicRigidBody(cubeNodes[15], btVector3(1760, 1000, 2442) );
     //addDinamicRigidBody(mSceneMgr->getSceneNode("ParentArmNode"), btVector3(1683, 0, 1660) );
     //dynamicsWorld->addCollisionObject();
 
@@ -739,14 +776,37 @@ void BasicTutorial3::createBulletSim(void) {
         playerWorld.setIdentity();
         //playerPos is a D3DXVECTOR3 that holds the camera position.
         //playerWorld.setOrigin(btVector3(handPos.x, handPos.y, handPos.z));
-        playerWorld.setOrigin(btVector3(1750, 50, 2542));
+        playerWorld.setOrigin(btVector3(1750, 100, 2542));
         playerWorld.setRotation(btQuaternion(0.0,-1.6,0.0));
-        btCollisionObject *mPlayerObject = new MyCollisionObject(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
-        //btCollisionObject *mPlayerObject = new btCollisionObject();
-        mPlayerObject->setWorldTransform(playerWorld);
-        mPlayerObject->setCollisionShape(mPlayerBox);
-        mPlayerObject->forceActivationState(DISABLE_DEACTIVATION);//maybe not needed
-        dynamicsWorld->addCollisionObject(mPlayerObject);
+//        btCollisionObject *mPlayerObject = new MyCollisionObject(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
+//        //btCollisionObject *mPlayerObject = new btCollisionObject();
+//        btCollisionObject::
+//        mPlayerObject->setWorldTransform(playerWorld);
+//        mPlayerObject->setCollisionShape(mPlayerBox);
+//        mPlayerObject->forceActivationState(DISABLE_DEACTIVATION);//maybe not needed
+//        dynamicsWorld->addCollisionObject(mPlayerObject);
+        btScalar   mass(1.f);
+
+        //rigidbody is dynamic if and only if mass is non zero, otherwise static
+        bool isDynamic = (mass != 0.f);
+
+        btVector3 localInertia(0,0,-1.0);
+        if (isDynamic)
+        mPlayerBox->calculateLocalInertia(mass,localInertia);
+
+        MyKinematicMotionState* motionState = new MyKinematicMotionState(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
+        //motionState->setNode();
+        motionState->setWorldTransform(playerWorld);
+        //btDefaultMotionState* motionState = new btDefaultMotionState(startTransform);
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,motionState,mPlayerBox,localInertia);
+        arm = new btRigidBody(rbInfo);
+        //body->setGravity(btVector3(0,-100,0));
+
+        arm->setCollisionFlags(btCollisionObject::CF_KINEMATIC_OBJECT);
+        //arm->setActivationState( DISABLE_DEACTIVATION );
+
+        printf("isKinematicObject?: %s\n", arm->isKinematicObject()? "True": "False");
+        dynamicsWorld->addRigidBody(arm);
     }
 }
 
@@ -873,6 +933,16 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
     bool ret = BaseApplication::frameRenderingQueued(evt);
     //trees->update();
+//    btTransform playerWorld;
+//    playerWorld = arm->getWorldTransform();
+//    //playerWorld.setIdentity();
+////    //playerPos is a D3DXVECTOR3 that holds the camera position.
+////    //playerWorld.setOrigin(btVector3(handPos.x, handPos.y, handPos.z));
+////    playerWorld.setOrigin(btVector3(1750, 100, 2542));
+////    playerWorld.setRotation(btQuaternion(0.0,-1.6,0.0));
+//    MyKinematicMotionState *motionState = new MyKinematicMotionState(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
+//    motionState->setKinematicPos(playerWorld);
+//    //arm->setMotionState(motionState);
     dynamicsWorld->stepSimulation(evt.timeSinceLastFrame,50);
 
 
@@ -947,7 +1017,26 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 
         //handNode->setPosition(handScenePos);
         //armNode->setPosition(armScenePos);
-        armNode->setPosition(handScenePos);
+        //dynamicsWorld->addAction();
+        //// ORIGINAL
+//        armNode->setPosition(handScenePos);
+//        armNode->pitch(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getPitch());
+//        armNode->roll(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getRoll());
+        ////FIN ORIGINAL
+
+        Ogre::Quaternion rot = distanceVectorTotalBefore.getRotationTo(distanceVectorTotal);
+
+        btTransform playerWorld;
+        playerWorld = arm->getWorldTransform();
+        //playerWorld.setIdentity();
+        playerWorld.setOrigin(btVector3(handScenePos.x, handScenePos.y, handScenePos.z));
+    //    //playerPos is a D3DXVECTOR3 that holds the camera position.
+    //    //playerWorld.setOrigin(btVector3(handPos.x, handPos.y, handPos.z));
+    //    playerWorld.setOrigin(btVector3(1750, 100, 2542));
+        //playerWorld.setRotation(btQuaternion(rot.getPitch().valueRadians(), 0, 0));
+        MyKinematicMotionState *motionState = new MyKinematicMotionState(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
+        motionState->setKinematicPos(playerWorld);
+        arm->setMotionState(motionState);
 
 //        Ogre::Real dotProduct = distanceVectorHand.dotProduct(distanceVectorArm);
 //        if(dotProduct > dotProductMax) dotProductMax = dotProduct;
@@ -999,8 +1088,7 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 //        armNode->pitch(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getPitch());
 //        armNode->roll(-distanceVectorArmBefore.getRotationTo(distanceVectorArm).getRoll());
 
-        armNode->pitch(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getPitch());
-        armNode->roll(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getRoll());
+
 
         printf("Arm Degrees Pitch %.2f\n", distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getPitch().valueAngleUnits());
         //printf("Arm Degrees Roll %e\n", distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getRoll().valueDegrees());
