@@ -272,22 +272,17 @@ Points** ElbowTracker::Print(){
             continue;
         }
         m_isTracking = TRUE;
-        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_ELBOW,torsoJoint);
-//        printf("user %d: left elbow at (%6.2f,%6.2f,%6.2f)\n",aUsers[i],
-//                                                            torsoJoint.position.position.X,
-//                                                            torsoJoint.position.position.Y,
-//                                                            torsoJoint.position.position.Z);
 
+        // Right
+
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_ELBOW,torsoJoint);
 
         m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointX = torsoJoint.position.position.X;
         m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointY = torsoJoint.position.position.Y;
         m_Points[aUsers[i]][XN_SKEL_RIGHT_ELBOW].pointZ = torsoJoint.position.position.Z;
 
         m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_RIGHT_HAND,torsoJoint);
-//            printf("user %d: left hand at (%6.2f,%6.2f,%6.2f)\n",aUsers[i],
-//                                                            torsoJoint.position.position.X,
-//                                                            torsoJoint.position.position.Y,
-//                                                            torsoJoint.position.position.Z);
+
         m_Points[aUsers[i]][XN_SKEL_RIGHT_HAND].pointX = torsoJoint.position.position.X;
         m_Points[aUsers[i]][XN_SKEL_RIGHT_HAND].pointY = torsoJoint.position.position.Y;
         m_Points[aUsers[i]][XN_SKEL_RIGHT_HAND].pointZ = torsoJoint.position.position.Z;
@@ -297,6 +292,26 @@ Points** ElbowTracker::Print(){
         m_Points[aUsers[i]][XN_SKEL_RIGHT_WRIST].pointX = torsoJoint.position.position.X;
         m_Points[aUsers[i]][XN_SKEL_RIGHT_WRIST].pointY = torsoJoint.position.position.Y;
         m_Points[aUsers[i]][XN_SKEL_RIGHT_WRIST].pointZ = torsoJoint.position.position.Z;
+
+        // Left
+
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_LEFT_ELBOW,torsoJoint);
+
+        m_Points[aUsers[i]][XN_SKEL_LEFT_ELBOW].pointX = torsoJoint.position.position.X;
+        m_Points[aUsers[i]][XN_SKEL_LEFT_ELBOW].pointY = torsoJoint.position.position.Y;
+        m_Points[aUsers[i]][XN_SKEL_LEFT_ELBOW].pointZ = torsoJoint.position.position.Z;
+
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_LEFT_HAND,torsoJoint);
+
+        m_Points[aUsers[i]][XN_SKEL_LEFT_HAND].pointX = torsoJoint.position.position.X;
+        m_Points[aUsers[i]][XN_SKEL_LEFT_HAND].pointY = torsoJoint.position.position.Y;
+        m_Points[aUsers[i]][XN_SKEL_LEFT_HAND].pointZ = torsoJoint.position.position.Z;
+
+        m_UserGenerator.GetSkeletonCap().GetSkeletonJoint(aUsers[i],XN_SKEL_LEFT_WRIST,torsoJoint);
+
+        m_Points[aUsers[i]][XN_SKEL_LEFT_WRIST].pointX = torsoJoint.position.position.X;
+        m_Points[aUsers[i]][XN_SKEL_LEFT_WRIST].pointY = torsoJoint.position.position.Y;
+        m_Points[aUsers[i]][XN_SKEL_LEFT_WRIST].pointZ = torsoJoint.position.position.Z;
     }
     return m_Points;
 }
