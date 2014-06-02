@@ -161,7 +161,8 @@ Ogre::Real dotProductMin = 9999999999999999;
 Forests::PagedGeometry *trees;
 Ogre::SceneNode *node;
 Ogre::SceneNode *cubeNodes[16];
-btRigidBody* arm;
+btRigidBody* armbRight;
+btRigidBody* armbLeft;
 
 
 
@@ -826,18 +827,19 @@ void BasicTutorial3::createBulletSim(void) {
 
     }
 
-    addDynamicRigidBody(cubeNodes[15], btVector3(1760, 1000, 2442) );
+    addDynamicRigidBody(cubeNodes[15], btVector3(1720, 300, 2000) );
     //addDinamicRigidBody(mSceneMgr->getSceneNode("ParentArmNode"), btVector3(1683, 0, 1660) );
     //dynamicsWorld->addCollisionObject();
 
     {
-        Ogre::Node *armNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
-        Ogre::Node *handNode = armNode->getChild("RightHandNode");
-        Ogre::Vector3 handPos = armNode->getPosition();
+        Ogre::Node *rightArmNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
+        Ogre::Node *rightHandNode = rightArmNode->getChild("RightHandNode");
+        Ogre::Vector3 handPos = rightArmNode->getPosition();
+
         printf("Hand Node Derived Position (%d, %d, %d)\n", handPos.x,  handPos.y,  handPos.z);
 
         //btCollisionShape *mPlayerBox = new btBoxShape(btVector3(25,1,600));
-        btCollisionShape *mPlayerBox = new btCylinderShape(btVector3(35,600,1));
+        btCollisionShape *mPlayerBox = new btCylinderShape(btVector3(35,600,35));
         collisionShapes.push_back(mPlayerBox);
         btTransform playerWorld;
         playerWorld.setIdentity();
@@ -866,14 +868,64 @@ void BasicTutorial3::createBulletSim(void) {
         motionState->setWorldTransform(playerWorld);
         //btDefaultMotionState* motionState = new btDefaultMotionState(startTransform);
         btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,motionState,mPlayerBox,localInertia);
-        arm = new btRigidBody(rbInfo);
+        armbRight = new btRigidBody(rbInfo);
         //body->setGravity(btVector3(0,-100,0));
 
-        arm->setCollisionFlags(btCollisionObject::CF_KINEMATIC_OBJECT);
+        armbRight->setCollisionFlags(btCollisionObject::CF_KINEMATIC_OBJECT);
         //arm->setActivationState( DISABLE_DEACTIVATION );
 
-        printf("isKinematicObject?: %s\n", arm->isKinematicObject()? "True": "False");
-        dynamicsWorld->addRigidBody(arm);
+        printf("isKinematicObject?: %s\n", armbRight->isKinematicObject()? "True": "False");
+        dynamicsWorld->addRigidBody(armbRight);
+    }
+
+    {
+
+        Ogre::Node *leftArmNode =  mSceneMgr->getRootSceneNode()->getChild("ParentArmNode");
+        Ogre::Node *leftHandNode = leftArmNode->getChild("RightHandNode");
+        Ogre::Vector3 leftHandPos = leftArmNode->getPosition();
+
+        printf("Hand Node Derived Position (%d, %d, %d)\n", leftHandPos.x,  leftHandPos.y,  leftHandPos.z);
+
+        //btCollisionShape *mPlayerBox = new btBoxShape(btVector3(50,50,50));
+        btCollisionShape *mPlayerBox = new btCylinderShape(btVector3(35,700,100));
+        collisionShapes.push_back(mPlayerBox);
+        btTransform playerWorld;
+        playerWorld.setIdentity();
+        //playerPos is a D3DXVECTOR3 that holds the camera position.
+        //playerWorld.setOrigin(btVector3(handPos.x, handPos.y, handPos.z));
+        playerWorld.setOrigin(btVector3(1650, 100, 2542));
+        playerWorld.setRotation(btQuaternion(0.0,-1.6,0.0));
+//        btCollisionObject *mPlayerObject = new MyCollisionObject(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
+//        //btCollisionObject *mPlayerObject = new btCollisionObject();
+//        btCollisionObject::
+//        mPlayerObject->setWorldTransform(playerWorld);
+//        mPlayerObject->setCollisionShape(mPlayerBox);
+//        mPlayerObject->forceActivationState(DISABLE_DEACTIVATION);//maybe not needed
+//        dynamicsWorld->addCollisionObject(mPlayerObject);
+        btScalar   mass(1.f);
+
+        //rigidbody is dynamic if and only if mass is non zero, otherwise static
+        bool isDynamic = (mass != 0.f);
+
+        btVector3 localInertia(0,0,-1.0);
+        if (isDynamic)
+        mPlayerBox->calculateLocalInertia(mass,localInertia);
+
+        MyKinematicMotionState* motionState = new MyKinematicMotionState(playerWorld, mSceneMgr->getSceneNode("ParentLeftArmNode"));
+        //motionState->setNode();
+        motionState->setWorldTransform(playerWorld);
+        //btDefaultMotionState* motionState = new btDefaultMotionState(startTransform);
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,motionState,mPlayerBox,localInertia);
+        armbLeft = new btRigidBody(rbInfo);
+        //body->setGravity(btVector3(0,-100,0));
+
+        armbLeft->setCollisionFlags(btCollisionObject::CF_KINEMATIC_OBJECT);
+        //arm->setActivationState( DISABLE_DEACTIVATION );
+
+        printf("isKinematicObject?: %s\n", armbLeft->isKinematicObject()? "True": "False");
+        dynamicsWorld->addRigidBody(armbLeft);
+
+
     }
 }
 
@@ -1163,42 +1215,72 @@ bool BasicTutorial3::frameRenderingQueued(const Ogre::FrameEvent& evt)
 //        armNode->pitch(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getPitch());
         //armNode->roll(distanceVectorTotalBefore.getRotationTo(distanceVectorTotal).getRoll());
 
-        leftArmNode->setPosition(leftHandScenePos);
-        leftArmNode->pitch(distanceLeftVectorTotalBefore.getRotationTo(distanceLeftVectorTotal).getPitch());
+        //leftArmNode->setPosition(leftHandScenePos);
+        //leftArmNode->pitch(distanceLeftVectorTotalBefore.getRotationTo(distanceLeftVectorTotal).getPitch());
         ////FIN ORIGINAL
 
 
         //// PRUEBA BULLET
-        Ogre::Quaternion rot = distanceVectorTotalBefore.getRotationTo(distanceVectorTotal);
+        Ogre::Quaternion rotRight = distanceVectorTotalBefore.getRotationTo(distanceVectorTotal);
+        Ogre::Quaternion rotLeft = distanceLeftVectorTotalBefore.getRotationTo(distanceLeftVectorTotal);
 
-        btTransform playerWorld;
-        playerWorld = arm->getWorldTransform();
+        btTransform playerWorldRight;
+        playerWorldRight = armbRight->getWorldTransform();
 
-        btQuaternion quatBefore = playerWorld.getRotation();
-        printf("PlayerWorld Quaternion: %.2f, %.2f, %.2f, %.2f \n", quatBefore.getX(), quatBefore.getY(), quatBefore.getZ(), quatBefore.getW());
+        btTransform playerWorldLeft;
+        playerWorldLeft = armbLeft->getWorldTransform();
 
-        playerWorld.setOrigin(btVector3(handScenePos.x, handScenePos.y, handScenePos.z));
-        Ogre::Quaternion quatP;
-        quatP.FromAngleAxis(rot.getPitch(), Ogre::Vector3::UNIT_X);
-        printf("Pitch Angle Degrees: %.2f /", quatP.getPitch().valueDegrees());
-        printf("Roll Angle Degrees: %.2f /", quatP.getRoll().valueDegrees());
-        printf("Yaw Angle Degrees: %.2f \n", quatP.getYaw().valueDegrees());
+        btQuaternion quatBeforeRight = playerWorldRight.getRotation();
+        printf("PlayerWorld Quaternion: %.2f, %.2f, %.2f, %.2f \n", quatBeforeRight.getX(), quatBeforeRight.getY(), quatBeforeRight.getZ(), quatBeforeRight.getW());
 
-        printf("Ogre Quaternion: %.2f, %.2f, %.2f, %.2f \n", quatP.x, quatP.y, quatP.z, quatP.w);
+        btQuaternion quatBeforeLeft = playerWorldLeft.getRotation();
+        printf("PlayerWorld Quaternion: %.2f, %.2f, %.2f, %.2f \n", quatBeforeLeft.getX(), quatBeforeLeft.getY(), quatBeforeLeft.getZ(), quatBeforeLeft.getW());
+
+        playerWorldRight.setOrigin(btVector3(handScenePos.x, handScenePos.y, handScenePos.z));
+        playerWorldLeft.setOrigin(btVector3(leftHandScenePos.x, leftHandScenePos.y, leftHandScenePos.z));
+
+        Ogre::Quaternion quatPRight;
+        quatPRight.FromAngleAxis(rotRight.getPitch(), Ogre::Vector3::UNIT_X);
+//        printf("Pitch Angle Degrees: %.2f /", quatPRight.getPitch().valueDegrees());
+//        printf("Roll Angle Degrees: %.2f /", quatPRight.getRoll().valueDegrees());
+//        printf("Yaw Angle Degrees: %.2f \n", quatPRight.getYaw().valueDegrees());
+
+//        printf("Ogre Right Quaternion: %.2f, %.2f, %.2f, %.2f \n", quatPRight.x, quatPRight.y, quatPRight.z, quatPRight.w);
+
+        Ogre::Quaternion quatPLeft;
+        quatPLeft.FromAngleAxis(rotLeft.getPitch(), Ogre::Vector3::UNIT_X);
+        printf("Pitch Left Angle Degrees: %.2f /", quatPLeft.getPitch().valueDegrees());
+        printf("Roll Left Angle Degrees: %.2f /", quatPLeft.getRoll().valueDegrees());
+        printf("Yaw Left Angle Degrees: %.2f \n", quatPLeft.getYaw().valueDegrees());
+
+        printf("Ogre Left Quaternion: %.2f, %.2f, %.2f, %.2f \n", quatPLeft.x, quatPLeft.y, quatPLeft.z, quatPLeft.w);
 
         btVector3 unitX = btVector3(Ogre::Vector3::UNIT_X.x, Ogre::Vector3::UNIT_X.y, Ogre::Vector3::UNIT_X.z);
-        btQuaternion bulletPitch = btQuaternion(btVector3(1,0,0), rot.getPitch().valueRadians());
 
-        printf("Bullet Quaternion: %.2f, %.2f, %.2f, %.2f \n", bulletPitch.getX(), bulletPitch.getY(), bulletPitch.getZ(), bulletPitch.getW());
+        btQuaternion bulletPitchRight = btQuaternion(btVector3(1,0,0), rotRight.getPitch().valueRadians());
+        btQuaternion bulletPitchLeft = btQuaternion(btVector3(1,0,0), rotLeft.getPitch().valueRadians());
 
-        btQuaternion bulletPitchWBefore = quatBefore*bulletPitch;
-        printf("Bullet W/Before Quaternion: %.2f, %.2f, %.2f, %.2f \n", bulletPitchWBefore.getX(), bulletPitchWBefore.getY(), bulletPitchWBefore.getZ(), bulletPitchWBefore.getW());
+        printf("Bullet Right Quaternion: %.2f, %.2f, %.2f, %.2f \n", bulletPitchRight.getX(), bulletPitchRight.getY(), bulletPitchRight.getZ(), bulletPitchRight.getW());
+        printf("Bullet Left Quaternion: %.2f, %.2f, %.2f, %.2f \n", bulletPitchLeft.getX(), bulletPitchLeft.getY(), bulletPitchLeft.getZ(), bulletPitchLeft.getW());
+
+        btQuaternion bulletPitchRightWBefore = quatBeforeRight*bulletPitchRight;
+        btQuaternion bulletPitchLeftWBefore = quatBeforeLeft*bulletPitchLeft;
+
+        printf("Bullet Right W/Before Quaternion: %.2f, %.2f, %.2f, %.2f \n", bulletPitchRightWBefore.getX(), bulletPitchRightWBefore.getY(), bulletPitchRightWBefore.getZ(), bulletPitchRightWBefore.getW());
+        printf("Bullet Left W/Before Quaternion: %.2f, %.2f, %.2f, %.2f \n", bulletPitchLeftWBefore.getX(), bulletPitchLeftWBefore.getY(), bulletPitchLeftWBefore.getZ(), bulletPitchLeftWBefore.getW());
+
 
   //    //playerPos is a D3DXVECTOR3 that holds the camera position.
-        playerWorld.setRotation(bulletPitchWBefore);
-        MyKinematicMotionState *motionState = new MyKinematicMotionState(playerWorld, mSceneMgr->getSceneNode("ParentArmNode"));
-        motionState->setKinematicPos(playerWorld);
-        arm->setMotionState(motionState);
+        playerWorldRight.setRotation(bulletPitchRightWBefore);
+        playerWorldLeft.setRotation(bulletPitchLeftWBefore);
+
+        MyKinematicMotionState *motionStateRight = new MyKinematicMotionState(playerWorldRight, mSceneMgr->getSceneNode("ParentArmNode"));
+        motionStateRight->setKinematicPos(playerWorldRight);
+        armbRight->setMotionState(motionStateRight);
+
+        MyKinematicMotionState *motionStateLeft = new MyKinematicMotionState(playerWorldLeft, mSceneMgr->getSceneNode("ParentLeftArmNode"));
+        motionStateLeft->setKinematicPos(playerWorldLeft);
+        armbLeft->setMotionState(motionStateLeft);
 
         //// FIN PRUEBA BULLET
 
